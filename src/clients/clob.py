@@ -79,6 +79,18 @@ class ClobClient(RestJsonClient):
             transport=transport,
         )
 
+    def get_prices_history_payload(
+        self,
+        token_id: str,
+        *,
+        interval: str = "1w",
+        fidelity: int = 5,
+    ) -> Any:
+        return self.get_json(
+            "/prices-history",
+            params={"market": token_id, "interval": interval, "fidelity": fidelity},
+        )
+
     def get_book(self, token_id: str) -> OrderBookSnapshot:
         payload = self.get_json("/book", params={"token_id": token_id})
         if not isinstance(payload, dict):
@@ -119,11 +131,22 @@ class ClobClient(RestJsonClient):
         interval: str = "1w",
         fidelity: int = 5,
     ) -> PriceHistory:
-        payload = self.get_json(
-            "/prices-history",
-            params={"market": token_id, "interval": interval, "fidelity": fidelity},
+        payload = self.get_prices_history_payload(token_id, interval=interval, fidelity=fidelity)
+        return self.parse_price_history(
+            token_id,
+            interval=interval,
+            fidelity=fidelity,
+            payload=payload,
         )
 
+    @staticmethod
+    def parse_price_history(
+        token_id: str,
+        *,
+        interval: str,
+        fidelity: int,
+        payload: Any,
+    ) -> PriceHistory:
         raw_points = payload.get("history") if isinstance(payload, dict) else payload
         if not isinstance(raw_points, list):
             raise UnexpectedPayloadError("Expected /prices-history to return a history list.")

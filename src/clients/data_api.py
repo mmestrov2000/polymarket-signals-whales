@@ -111,6 +111,9 @@ class DataApiClient(RestJsonClient):
             transport=transport,
         )
 
+    def get_trades_payload(self, market: str, *, limit: int = 100) -> Any:
+        return self.get_json("/trades", params={"market": market, "limit": limit})
+
     def list_leaderboard(
         self,
         *,
@@ -173,9 +176,7 @@ class DataApiClient(RestJsonClient):
         return [self._parse_trade_record(record) for record in records]
 
     def list_trades(self, market: str, *, limit: int = 100) -> list[TradeRecord]:
-        payload = self.get_json("/trades", params={"market": market, "limit": limit})
-        records = extract_records(payload, wrapper_keys=("data", "trades", "results"))
-        return [self._parse_trade_record(record) for record in records]
+        return self.parse_trades(self.get_trades_payload(market, limit=limit))
 
     def list_holders(self, market: str, *, limit: int = 100) -> list[HolderGroup]:
         payload = self.get_json("/holders", params={"market": market, "limit": limit})
@@ -272,6 +273,11 @@ class DataApiClient(RestJsonClient):
             market_id=parse_optional_str(record.get("market")),
             value=parse_optional_decimal(record.get("value")),
         )
+
+    @classmethod
+    def parse_trades(cls, payload: Any) -> list[TradeRecord]:
+        records = extract_records(payload, wrapper_keys=("data", "trades", "results"))
+        return [cls._parse_trade_record(record) for record in records]
 
     @staticmethod
     def _extract_holder_groups(payload: Any) -> list[dict[str, Any]]:

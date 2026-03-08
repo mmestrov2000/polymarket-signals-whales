@@ -199,7 +199,7 @@ Notes:
 - `tests/test_storage.py` covers append-only raw writes, schema creation, and repeated upserts without duplicate normalized rows.
 
 ### T2.3 Build a sample market backfill command
-Status: `pending`
+Status: `completed`
 
 Goal:
 - backfill a small, explicit market cohort to prove the collection path works end to end
@@ -213,6 +213,11 @@ Acceptance criteria:
 - a developer can run one command to backfill the chosen sample set
 - collected data is readable from the analytical store
 - the command reports failures and skipped items clearly
+
+Notes:
+- `src/ingestion/sample_market_backfill.py` now defines a deterministic sample selection rule for open Gamma markets, a backfill job that stores raw Gamma/CLOB/Data API payloads, and DuckDB upserts for market metadata, price history, and market trades.
+- `scripts/backfill_sample_markets.py` provides the one-command entry point with configurable sample size, Gamma scan depth, price-history params, raw output path, and warehouse path, and prints a clear summary plus any failures.
+- `tests/test_sample_market_backfill.py` and `tests/test_backfill_sample_markets_script.py` cover deterministic selection, end-to-end raw/normalized persistence, partial-failure reporting, and the script output contract.
 
 ### T2.4 Build a live recorder for trades and top-of-book snapshots
 Status: `pending`

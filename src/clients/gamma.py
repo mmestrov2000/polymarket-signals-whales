@@ -50,9 +50,15 @@ class GammaClient(RestJsonClient):
             transport=transport,
         )
 
+    def get_markets_payload(self, *, limit: int = 100, closed: bool = False) -> Any:
+        return self.get_json("/markets", params={"limit": limit, "closed": closed})
+
     def list_markets(self, *, limit: int = 100, closed: bool = False) -> list[GammaMarket]:
-        payload = self.get_json("/markets", params={"limit": limit, "closed": closed})
-        return [self._parse_market(record) for record in extract_records(payload, wrapper_keys=("data", "markets"))]
+        return self.parse_markets(self.get_markets_payload(limit=limit, closed=closed))
+
+    @classmethod
+    def parse_markets(cls, payload: Any) -> list[GammaMarket]:
+        return [cls._parse_market(record) for record in extract_records(payload, wrapper_keys=("data", "markets"))]
 
     @staticmethod
     def _parse_market(record: dict[str, Any]) -> GammaMarket:
