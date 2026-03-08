@@ -240,6 +240,7 @@ Notes:
 - `src/storage/warehouse.py` now provisions an `order_book_snapshots` DuckDB table with idempotent upserts for best-bid/best-ask state, spread, and mid-price, while reusing the existing `trades` table for forward-collected websocket trade rows.
 - `scripts/record_live_market_stream.py` adds the one-command entry point for bounded live recording sessions with asset selection, reconnect/time-out controls, and session summaries.
 - `tests/test_live_market_recorder.py` and `tests/test_storage.py` cover mixed websocket normalization, raw plus normalized persistence, receive-timeout reconnect warnings, and `order_book_snapshots` upsert behavior.
+- `notebooks/market_data_exploration/00_live_market_walkthrough.ipynb` and `docs/milestone2_live_exploration.md` now provide a one-market deep-dive workflow that reuses the sample backfill and live recorder against isolated per-run storage, with visual checks for price history, live top-of-book state, spreads, and captured trades.
 
 ## Milestone 3 - Whale Wallet Data Collection
 

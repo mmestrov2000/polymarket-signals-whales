@@ -9,9 +9,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_notebook(relative_path: str) -> dict:
+    return json.loads((REPO_ROOT / relative_path).read_text())
+
+
 def load_connection_notebook() -> dict:
-    notebook_path = REPO_ROOT / "notebooks/polymarket_connection_checks/00_api_connection.ipynb"
-    return json.loads(notebook_path.read_text())
+    return load_notebook("notebooks/polymarket_connection_checks/00_api_connection.ipynb")
+
+
+def load_m2_exploration_notebook() -> dict:
+    return load_notebook("notebooks/market_data_exploration/00_live_market_walkthrough.ipynb")
 
 
 def test_validate_repo_passes_for_tracked_checkout(tmp_path: Path) -> None:
@@ -85,6 +92,47 @@ def test_connection_notebook_contains_milestone_1_checks() -> None:
     assert "Deferred to T1.3" not in notebook_source
     assert "TODO: add Gamma API checks and persist representative payload samples." not in notebook_source
     assert "TODO: add CLOB API checks for market state, price history, and trades." not in notebook_source
+
+
+def test_m2_exploration_notebook_is_valid_json() -> None:
+    notebook = load_m2_exploration_notebook()
+
+    assert notebook["nbformat"] == 4
+    assert any(cell["cell_type"] == "markdown" for cell in notebook["cells"])
+    assert any(cell["cell_type"] == "code" for cell in notebook["cells"])
+
+
+def test_m2_exploration_notebook_contains_walkthrough_anchors() -> None:
+    notebook = load_m2_exploration_notebook()
+    notebook_source = "\n".join("".join(cell["source"]) for cell in notebook["cells"])
+
+    assert "POLYMARKET_EXPLORATION_RUN_ID" in notebook_source
+    assert "scripts/backfill_sample_markets.py" in notebook_source
+    assert "scripts/record_live_market_stream.py" in notebook_source
+    assert "sample_market_selection" in notebook_source
+    assert "live_market_channel_events" in notebook_source
+    assert "price_history" in notebook_source
+    assert "order_book_snapshots" in notebook_source
+    assert "trades" in notebook_source
+    assert "duckdb" in notebook_source
+    assert "websockets" in notebook_source
+    assert "matplotlib" in notebook_source
+    assert "notebook" in notebook_source
+    assert "data/runs" in notebook_source
+    assert "No live trades were captured during this session" in notebook_source
+
+
+def test_m2_exploration_docs_are_linked() -> None:
+    readme_content = (REPO_ROOT / "README.md").read_text()
+    runbook_content = (REPO_ROOT / "docs/milestone2_live_exploration.md").read_text()
+
+    assert "docs/milestone2_live_exploration.md" in readme_content
+    assert "notebooks/market_data_exploration/00_live_market_walkthrough.ipynb" in readme_content
+    assert "scripts/bootstrap_env.sh" in runbook_content
+    assert "scripts/backfill_sample_markets.py" in runbook_content
+    assert "scripts/record_live_market_stream.py" in runbook_content
+    assert "POLYMARKET_EXPLORATION_RUN_ID" in runbook_content
+    assert "data/runs/" in runbook_content
 
 
 def test_gitignore_keeps_local_only_assets_out_of_git() -> None:
