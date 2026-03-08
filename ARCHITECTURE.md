@@ -2,190 +2,198 @@
 
 ## Architectural Goal
 
-Support a research-first Polymarket workflow that can validate data availability, collect reusable datasets, and evaluate signal quality before any live execution is attempted.
+Support a narrow, local-first research workflow that turns a large static archive into:
+- comparable Polymarket and Kalshi probability tables
+- final resolution labels
+- calibration statistics for extreme probabilities
+- visual outputs and a short decision memo
 
-The architecture should stay local-first and minimal until the research scope proves there is a real edge worth operationalizing.
+The architecture is intentionally optimized for fast exploratory truth-finding, not live services or trading infrastructure.
 
 ## Scope Boundaries
 
 ### Implemented Now
 
-- canonical project documents
-- minimal folder scaffold for current-scope Python modules
-- connection-verification notebook scaffold
+- rewritten canonical docs for the exploration pivot
+- minimal analysis scaffold
+- placeholder notebooks for dataset inventory and extreme-probability analysis
 
 ### Current Build Target
 
-- endpoint validation notebook
-- thin API clients
-- raw and normalized local storage
-- historical and live data collection
-- market-signal and wallet-feature pipelines
-- dataset generation and offline evaluation
+- archive inventory and extraction planning
+- venue-specific schema mapping
+- canonical market, contract, tick, and resolution tables
+- sampling views for descriptive and inferential analysis
+- statistical summaries and figures
 
-### Deferred Until Later Milestones
+### Deferred
 
-- always-on online scoring service
-- paper trading journal and alert delivery
-- authenticated order placement
-- live risk controls and deployment automation
+- live API collection
+- wallet analysis
+- backtesting
+- paper trading
+- execution or risk systems
+
+## Active Versus Legacy Code
+
+The repository already contains client, ingestion, and storage modules from an earlier bot-oriented direction.
+
+Current rule:
+- new work should target archive analysis and visualization first
+- inherited modules under `src/clients/`, `src/ingestion/`, and `src/signals/` are legacy context, not the active roadmap
+- `src/storage/` may still be reused if its DuckDB helpers fit the new workflow
 
 ## Repository Layout
-
-Only the directories needed for the current scope are required now.
 
 ```text
 .
 ├─ PROJECT_SPEC.md
 ├─ ARCHITECTURE.md
 ├─ TASKS.md
+├─ README.md
 ├─ notebooks/
+│  ├─ extreme_probability/
+│  │  ├─ 00_dataset_inventory.ipynb
+│  │  └─ 01_extreme_probability_analysis.ipynb
 │  └─ polymarket_connection_checks/
 │     └─ 00_api_connection.ipynb
+├─ reports/
+│  ├─ figures/
+│  └─ summaries/
 ├─ src/
+│  ├─ analysis/
+│  ├─ datasets/
+│  ├─ visualization/
+│  ├─ research/
+│  ├─ storage/
 │  ├─ clients/
 │  ├─ ingestion/
-│  ├─ storage/
-│  ├─ signals/
-│  └─ research/
+│  └─ signals/
 └─ tests/
 ```
 
-Deferred directories such as `src/execution/` or `src/paper_trading/` should only be added when their milestone begins.
+The `polymarket_connection_checks` notebook and related client code remain in the tree as inherited assets. The active exploration workflow starts in `notebooks/extreme_probability/`.
 
 ## Component Responsibilities
 
 | Path | Responsibility | Notes |
 | --- | --- | --- |
-| `notebooks/polymarket_connection_checks/` | Exploratory endpoint validation and payload inspection | Must remain a sandbox for discovery, not a production dependency |
-| `src/clients/` | Thin wrappers around Polymarket API surfaces | No business logic; only request construction, retries, parsing, and auth handling where needed |
-| `src/ingestion/` | Backfill and stream collection orchestration | Owns idempotent collection jobs and source-to-storage normalization |
-| `src/storage/` | Local persistence, schemas, and read helpers | Owns raw payload layout and normalized analytical tables |
-| `src/signals/` | Market anomaly features, wallet features, and event extraction | Only uses observable data and time-safe wallet metrics |
-| `src/research/` | Dataset generation, labeling, offline evaluation, and reports | Contains leakage-safe research code and baseline backtests |
-| `tests/` | Unit and integration tests | Prefer fixtures captured from verified payloads |
+| `notebooks/extreme_probability/` | Interactive archive inspection, exploratory analysis, and figure generation | First execution target for the pivot |
+| `src/datasets/` | Archive discovery, extraction manifests, schema mapping, and canonical table builders | Owns input normalization |
+| `src/analysis/` | Bucketing, calibration metrics, confidence intervals, bootstrap or sensitivity logic | Owns statistical interpretation |
+| `src/visualization/` | Reusable plotting and report-table helpers | Keeps notebooks lighter and more consistent |
+| `src/research/` | Lightweight orchestration helpers for notebook and report workflows | Can host report assembly utilities |
+| `src/storage/` | Reusable local storage helpers, especially DuckDB integration | Reuse only where it fits the new scope |
+| `reports/figures/` | Saved charts and exported visuals | Output, not source of truth |
+| `reports/summaries/` | Short written conclusions or research memos | Final go or no-go output |
+| `tests/` | Unit and repo-guardrail tests | Prefer small fixtures over large integration tests |
 
 ## Data Flow
 
-1. The connection notebook verifies endpoint reachability, auth requirements, message structure, and key identifiers.
-2. Thin clients in `src/clients/` wrap each API surface and return normalized Python objects or validated dictionaries.
-3. Collectors in `src/ingestion/` write raw payloads to disk and upsert normalized records into the analytical store.
-4. Feature logic in `src/signals/` computes market anomaly metrics and wallet-quality metrics as of event time.
-5. Research code in `src/research/` joins features into event datasets, assigns future labels, and runs offline evaluation.
-6. Later milestones reuse the same data model for real-time scoring, paper trading, and eventually live execution.
+1. Discover local archives under `data/raw/` and record a file inventory.
+2. Filter out irrelevant entries such as Apple metadata files or non-analysis assets.
+3. Extract or stage only the required partitions into `data/staging/` when direct archive access is too slow.
+4. Normalize venue-specific raw files into canonical tables for markets, contracts, ticks, and final outcomes.
+5. Build analysis views:
+   - all usable ticks for descriptive summaries
+   - market-aware or threshold-entry samples for primary inference
+6. Compute calibration tables, confidence intervals, and sensitivity summaries.
+7. Save figures and a short memo under `reports/`.
 
 ## Storage Design
 
-Use a simple local analytical stack first:
-- raw API payload archive on disk for reproducibility and schema evolution
-- DuckDB as the default local analytical database
-- optional Parquet extracts for notebook-friendly intermediate datasets
+Use a simple local analytical stack:
+- compressed raw archives preserved under `data/raw/`
+- selective extraction or staging under `data/staging/`
+- DuckDB as the default analytical database under `data/warehouse/`
+- optional Parquet outputs under `data/derived/`
 
-### Raw Storage
-
-Proposed layout:
+### Proposed Layout
 
 ```text
 data/
 ├─ raw/
-│  ├─ gamma/
-│  ├─ clob/
-│  ├─ websocket/
-│  └─ data_api/
-└─ warehouse/
-   └─ polymarket.duckdb
+│  └─ *.tar.zst
+├─ staging/
+│  ├─ extracted/
+│  └─ fixtures/
+├─ warehouse/
+│  └─ extreme_probability.duckdb
+└─ derived/
+   ├─ canonical/
+   └─ analysis/
 ```
 
-Raw storage rules:
-- store payloads with source, request parameters, and collection timestamp
-- keep raw records append-only
-- prefer JSONL for list-like payload capture
-- never overwrite raw data silently
+### Raw Storage Rules
 
-### Normalized Tables
+- never modify the original archive in place
+- keep extraction selective and reproducible
+- store inventory metadata such as file path, venue, format, and extraction status
+- explicitly ignore Apple `._*` artifacts and any similar archive noise
 
-Initial normalized tables:
-- `markets`
-- `market_tokens`
-- `price_history`
-- `trades`
-- `wallet_positions`
-- `wallet_closed_positions`
-- `wallet_profiles`
-- `signal_events`
-- `event_dataset_rows`
+## Canonical Data Model
 
-Forward-only tables for later milestones:
-- `order_book_snapshots`
-- `paper_trades`
-- `live_orders`
-- `risk_events`
+Initial canonical tables:
 
-### Primary Join Keys
+| Table | Grain | Purpose |
+| --- | --- | --- |
+| `archive_inventory` | one row per relevant file or partition | Tracks what exists in the local archive |
+| `market_catalog` | one row per market | Venue-neutral market metadata |
+| `contract_catalog` | one row per binary contract | Maps YES and NO conventions into a common model |
+| `tick_observations` | one row per usable observation | Stores normalized probability and source metadata |
+| `resolution_outcomes` | one row per resolved contract | Stores final YES or NO outcome |
+| `threshold_entry_events` | one row per threshold-crossing event | Reduces repeated-tick bias for inference |
+| `calibration_summaries` | one row per venue and bucket | Stores empirical rate, quoted mean, gap, and uncertainty |
 
+Primary keys or join keys:
+- `venue`
 - `market_id`
-- `token_id`
-- `wallet_address`
-- `event_time_utc`
-- `collection_time_utc`
+- `contract_id`
+- `observation_time_utc`
+- `resolution_time_utc`
 
-All timestamps should be normalized to UTC before storage.
+All timestamps must be normalized to UTC before cross-venue comparison.
 
-## Module Design Principles
+## Analysis Rules
 
-- Keep API clients thin and testable.
-- Keep ingestion idempotent and restart-safe.
-- Separate raw collection from feature computation.
-- Keep wallet metrics time-aware to avoid leakage.
-- Make research outputs reproducible from raw or normalized data.
-- Favor explicit schemas over ad hoc notebook transformations once a field is confirmed useful.
+- normalize every probability to `[0, 1]`
+- store the raw price source explicitly, such as `trade_price`, `quote_mid`, or `close_price`
+- do not silently mix different price-source definitions inside one summary
+- exclude unresolved or ambiguously resolved contracts from the first-pass analysis
+- report both tick-weighted and market-aware summaries
+- use uncertainty estimates that respect market-level dependence, such as Wilson intervals plus market-clustered bootstrap where practical
 
 ## External Dependencies
 
-Expected Python dependencies for the current scope:
-- `httpx` for REST clients
-- `websockets` for streaming
-- `pydantic` or `pydantic-settings` for configuration
+Expected current-scope Python dependencies:
 - `duckdb` for local analytics
 - `polars` or `pandas` for transforms
-- `jupyter` for connection and research notebooks
+- `matplotlib`, `seaborn`, or `altair` for visualization
+- `scipy` or `statsmodels` for simple inference helpers
+- `jupyter` for notebooks
 - `pytest` for tests
 
-External services:
-- Polymarket Gamma API
-- Polymarket CLOB API
-- Polymarket WebSocket feeds
-- Polymarket Data API
+No external services are required for the active exploration scope.
 
-No separate database server, queue, or scheduler is required in the current scope.
+## Reliability and Reproducibility
 
-## Reliability and Observability
-
-Minimum expectations for current-scope code:
-- structured logging for collection jobs
-- explicit retry and timeout behavior in clients
-- persisted sample payloads for debugging parsing changes
-- ingestion checkpoints or idempotent upserts
-- clear error reporting on missing fields or failed endpoint checks
-
-Metrics and dashboards can wait until paper-trading work begins.
+Minimum expectations:
+- every derived table should be rebuildable from the local archive and documented transforms
+- notebook scaffolds should clearly state the questions being answered
+- bucket definitions must be fixed and versioned in code or docs
+- tests should cover normalization, bucketing, and sampling edge cases
+- figures should be saveable to a deterministic output path under `reports/`
 
 ## Security and Secrets
 
-Current scope:
-- public data collection should work without secrets
-- any future trading credentials must live in local environment configuration, never in notebooks or committed files
+Current scope does not require trading credentials or live API authentication.
 
-Later scope:
-- authenticated CLOB credentials
-- wallet signing support
-- separate risk and execution permissions
+If legacy API utilities remain in the repository, their environment settings should be treated as unrelated to the active exploration work and not expanded unless this project explicitly changes direction again.
 
 ## Now Versus Later
 
 | Status | Item | Reason |
 | --- | --- | --- |
-| Now | connection verification notebook | We must confirm data reality before implementation assumptions spread through the codebase |
-| Now | thin clients, collectors, local storage, signal research | These are required to answer whether the strategy is viable |
-| Later | paper trading loop | It depends on stable signal scoring and live collection |
-| Later | authenticated execution | It should only be added after research and paper results justify the added risk |
+| Now | archive inventory and normalization | Without a comparable dataset, every statistical claim is suspect |
+| Now | calibration analysis and figures | They directly answer the thesis |
+| Later in another project | backtesting and execution | They only matter if this study finds a credible effect |

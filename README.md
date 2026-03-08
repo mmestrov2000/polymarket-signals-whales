@@ -1,54 +1,20 @@
-# Polymarket Whale Signals Bot
+# Extreme Probability Market Calibration Study
 
-A research-first Python project for detecting potentially informed Polymarket activity, scoring the wallets behind that activity, and determining whether those signals are worth following.
+A local-first Python research project for testing whether extreme prices in Polymarket and Kalshi are systematically miscalibrated.
 
-The project does not start with automated trading. It starts by proving that the required Polymarket data actually exists, can be collected reliably, and supports leakage-safe research.
+The working thesis is simple:
+- low-probability contracts below `10%` are overvalued
+- high-probability contracts above `90%` are undervalued
+
+This repository is intentionally narrow. Its job is to analyze the archive, produce visual and statistical evidence, and end with a clear go or no-go decision. It is not a trading bot project.
 
 ## Project Goals
 
-- collect Polymarket market, trade, and wallet data
-- detect abnormal market behavior that may indicate informed flow
-- score wallet quality using historical performance and specialization
-- combine market signals and wallet signals into actionable event rows
-- evaluate whether the combined signal is profitable after realistic costs
-- graduate to paper trading first, then limited live trading only if evidence supports it
-
-## Strategy Summary
-
-The working thesis is:
-
-1. Market anomalies such as volume spikes, order flow imbalance, or liquidity shifts may indicate informed activity.
-2. Those anomalies become more useful when the wallets behind them have a strong historical profile.
-3. A signal should only be actionable when both the market signal and the wallet-quality signal are strong.
-
-This is explicitly not a naive whale-copying bot.
-
-## Current Scope
-
-Current development is focused on:
-- validating Polymarket API connectivity and payload shape
-- building thin clients for confirmed endpoints
-- collecting raw and normalized market data
-- collecting wallet-history data where available
-- generating event datasets for offline research and backtesting
-
-Out of scope for the current milestone:
-- real-money trading
-- large-scale deployment
-- speculative architecture that depends on unverified API capabilities
-
-## Milestone Path
-
-- Milestone 0: project bootstrap
-- Milestone 1: Polymarket API connectivity verification
-- Milestone 2: market data collection
-- Milestone 3: whale wallet data collection
-- Milestone 4: signal feature engineering
-- Milestone 5: dataset generation
-- Milestone 6: signal classifier training
-- Milestone 7: backtesting engine
-- Milestone 8: paper trading
-- Milestone 9: autonomous trading
+- inventory the local Polymarket and Kalshi archive
+- normalize comparable binary-market and resolution tables
+- compare market-implied probability with realized resolution frequency
+- measure calibration gaps in extreme buckets
+- visualize the results clearly enough to decide whether a follow-on execution project is warranted
 
 The detailed plan lives in [TASKS.md](TASKS.md).
 
@@ -62,23 +28,33 @@ The detailed plan lives in [TASKS.md](TASKS.md).
 ├─ AGENTS.md
 ├─ docs/
 ├─ notebooks/
+│  ├─ extreme_probability/
+│  │  ├─ 00_dataset_inventory.ipynb
+│  │  └─ 01_extreme_probability_analysis.ipynb
 │  └─ polymarket_connection_checks/
-│     └─ 00_api_connection.ipynb
+├─ reports/
+│  ├─ figures/
+│  └─ summaries/
 ├─ scripts/
 ├─ src/
-│  ├─ clients/
-│  ├─ ingestion/
-│  ├─ storage/
-│  ├─ signals/
-│  └─ research/
+│  ├─ datasets/
+│  ├─ analysis/
+│  ├─ visualization/
+│  ├─ research/
+│  └─ storage/
 └─ tests/
 ```
 
+Legacy note:
+- the repository still contains client and ingestion code from an earlier bot-oriented direction
+- the active source of truth is the archive-analysis workflow described in the canonical docs
+
 ## Canonical Docs
 
-- [PROJECT_SPEC.md](PROJECT_SPEC.md): product goals, scope, risks, MVP, and research questions
-- [ARCHITECTURE.md](ARCHITECTURE.md): current-scope architecture, data flow, and storage design
-- [TASKS.md](TASKS.md): ordered milestone backlog with implementation steps and acceptance criteria
+- [PROJECT_SPEC.md](PROJECT_SPEC.md): goals, scope, hypotheses, acceptance criteria, and risks
+- [ARCHITECTURE.md](ARCHITECTURE.md): active workflow, data model, and repo layout
+- [TASKS.md](TASKS.md): ordered backlog for archive inventory, normalization, analysis, and reporting
+- [docs/endpoint_capability_matrix.md](docs/endpoint_capability_matrix.md): legacy API reference retained from the earlier bot-oriented direction
 - [docs/PLAYBOOK.md](docs/PLAYBOOK.md): team workflow and delivery conventions
 - [AGENTS.md](AGENTS.md): repository rules for contributors and tools
 
@@ -88,6 +64,7 @@ The detailed plan lives in [TASKS.md](TASKS.md).
 
 - Python 3.12 or newer
 - Git
+- enough local disk to work with a roughly `33 GB` compressed data archive plus staged extracts
 
 ### Local Setup
 
@@ -98,7 +75,7 @@ scripts/bootstrap_env.sh
 source .venv/bin/activate
 ```
 
-Copy the environment template before adding real credentials:
+Copy the environment template if you need one for legacy utilities:
 
 ```bash
 cp .env.example .env
@@ -109,35 +86,35 @@ cp .env.example .env
 1. Read `PROJECT_SPEC.md`.
 2. Read `ARCHITECTURE.md`.
 3. Read `TASKS.md`.
-4. Start implementation from the next pending task, not from ad hoc code changes.
+4. Start with the next pending archive-analysis task.
 
-### First Execution Target
+### First Execution Targets
 
-The first concrete build target is the connection verification notebook:
+The active notebooks are:
 
-`notebooks/polymarket_connection_checks/00_api_connection.ipynb`
+- `notebooks/extreme_probability/00_dataset_inventory.ipynb`
+- `notebooks/extreme_probability/01_extreme_probability_analysis.ipynb`
 
-Its job is to verify:
-- Gamma API connectivity
-- CLOB API public access
-- wallet-related Data API coverage
-- WebSocket connectivity and message shape
-- key identifiers needed for later joins
+Their jobs are:
+- inventory the local archive
+- define the canonical market-priced probability field
+- analyze low and high probability calibration
+- generate figures and decision-ready summaries
 
-For Milestone 1 notebook work, launch `jupyter notebook` or `jupyter lab`, run the notebook top to bottom, and review the saved sample payloads under `data/raw/gamma/connection_checks/` and `data/raw/clob/connection_checks/`.
-Use `docs/endpoint_capability_matrix.md` as the concise follow-on reference for confirmed endpoint params, fields, and caveats.
+Expected local input:
+- a Polymarket and Kalshi archive under `data/raw/*.tar.zst`
 
 ## Development Workflow
 
 - use one branch per scoped task
 - do not commit directly to `main`
 - keep changes aligned with `PROJECT_SPEC.md`, `ARCHITECTURE.md`, and `TASKS.md`
-- keep tasks small and testable
-- prefer proving data availability before building strategy logic
+- prefer the quickest credible path to an answer over broad platform-building
+- keep execution and bot work out of scope unless the research explicitly justifies a new project
 
 ## Validation
 
-Run the same baseline checks locally before opening a PR:
+Run the baseline checks locally before opening a PR:
 
 ```bash
 scripts/validate_repo.sh
@@ -146,35 +123,31 @@ scripts/validate_repo.sh
 
 ## Technical Direction
 
-Planned core technologies:
-- Python for all clients, ingestion, feature engineering, and research code
-- Jupyter notebooks for connection checks and exploratory validation
-- DuckDB plus local raw payload storage for reproducible analytics
-
-Likely Polymarket sources:
-- Gamma API for market metadata
-- CLOB API for trades, prices, and market state
-- WebSocket feeds for live updates
-- Data API for wallet, holder, position, and trade-history research
+Planned current-scope technologies:
+- Python for normalization, analysis, and plotting helpers
+- Jupyter notebooks for inventory and exploratory analysis
+- DuckDB plus Parquet for local analytics
+- lightweight statistics for calibration gaps and uncertainty checks
 
 ## Current Status
 
 Completed:
-- project spec, architecture, and task plan
-- minimal repository scaffold
-- connection-check notebook placeholder
+- pivoted project docs
+- minimal archive-analysis scaffold
+- repo guardrails aligned with the new workflow
 
 Next:
-- Python project configuration and `.env.example`
-- Milestone 1 endpoint validation notebook work
+- inventory the archive contents
+- define the canonical binary-market schema
+- build the first calibration tables
 
 ## Important Risks
 
-- some wallet-attribution fields may be missing or inconsistent across endpoints
-- historical order book depth may not be available at the quality needed for backtests
-- apparent strategy edge may disappear after spread, slippage, fees, and latency
-- wallet-quality features can be misleading if not computed in a time-safe way
+- archive schema differences between Polymarket and Kalshi may complicate direct comparison
+- repeated ticks can overstate effective sample size
+- price-source choice matters for the meaning of "market probability"
+- selective extraction may be necessary to keep the workflow practical on one machine
 
 ## Disclaimer
 
-This repository is for research and software development. It is not financial advice, and any future live trading functionality should only be used with explicit risk controls and limited capital.
+This repository is for research and software development. It is not financial advice. If the thesis looks promising, any future trading work should live in a separate project with its own risk controls.

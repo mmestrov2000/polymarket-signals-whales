@@ -15,13 +15,18 @@ required_files=(
   "requirements-dev.txt"
   "docs/PLAYBOOK.md"
   "docs/endpoint_capability_matrix.md"
-  "notebooks/polymarket_connection_checks/00_api_connection.ipynb"
+  "notebooks/extreme_probability/00_dataset_inventory.ipynb"
+  "notebooks/extreme_probability/01_extreme_probability_analysis.ipynb"
 )
 
 required_dirs=(
   "docs"
   "notebooks"
+  "reports"
   "src"
+  "src/datasets"
+  "src/analysis"
+  "src/visualization"
   "tests"
   "scripts"
   ".github/workflows"

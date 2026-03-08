@@ -25,7 +25,9 @@ jobs:
         run: scripts/bootstrap_env.sh
       - name: Repo validation
         run: scripts/validate_repo.sh
-      - name: Notebook JSON validation
-        run: .venv/bin/python -m json.tool notebooks/polymarket_connection_checks/00_api_connection.ipynb > /dev/null
+      - name: Notebook JSON validation - inventory
+        run: .venv/bin/python -m json.tool notebooks/extreme_probability/00_dataset_inventory.ipynb > /dev/null
+      - name: Notebook JSON validation - analysis
+        run: .venv/bin/python -m json.tool notebooks/extreme_probability/01_extreme_probability_analysis.ipynb > /dev/null
       - name: Test
         run: .venv/bin/pytest
