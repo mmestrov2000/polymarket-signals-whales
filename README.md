@@ -125,6 +125,7 @@ Its job is to verify:
 - key identifiers needed for later joins
 
 For Milestone 1 notebook work, launch `jupyter notebook` or `jupyter lab`, run the notebook top to bottom, and review the saved sample payloads under `data/raw/gamma/connection_checks/` and `data/raw/clob/connection_checks/`.
+Use `docs/endpoint_capability_matrix.md` as the concise follow-on reference for confirmed endpoint params, fields, and caveats.
 
 ## Development Workflow
 

@@ -134,7 +134,7 @@ Notes:
 - The public market-channel docs do not currently document an application-level heartbeat, so the helper treats observed close or timeout events as reconnect triggers and resends the same subscription once for the notebook check.
 
 ### T1.4 Produce an endpoint capability matrix
-Status: `pending`
+Status: `completed`
 
 Goal:
 - convert notebook findings into a short implementation reference for later milestones
@@ -148,6 +148,11 @@ Acceptance criteria:
 - the repo contains a concise capability summary produced from Milestone 1 checks
 - future implementation tasks can point to confirmed fields instead of assumptions
 - unknowns are explicit rather than hidden in notebook output
+
+Notes:
+- `src/clients/endpoint_capabilities.py` now captures the Milestone 1 endpoint matrix as a structured source of truth, including required inputs, useful fields, join keys, rate-limit caveats, and unresolved questions.
+- `docs/endpoint_capability_matrix.md` now provides the concise implementation reference for later tasks, covering Gamma, CLOB REST, the public CLOB market-channel WebSocket, Data API endpoints, and deferred authenticated CLOB execution work.
+- Live public spot-checks on 2026-03-08 tightened the matrix for CLOB `/price`, Data API `/holders`, Data API `/oi`, and a secondary non-empty `/positions` wallet snapshot while preserving the notebook caveat that `/positions` coverage is wallet-dependent.
 
 ## Milestone 2 - Market Data Collection
 
