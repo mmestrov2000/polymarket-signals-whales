@@ -40,7 +40,7 @@ Acceptance criteria:
 - no later-phase execution or trading modules are added yet
 
 ### T0.3 Add Python project configuration and environment template
-Status: `pending`
+Status: `completed`
 
 Goal:
 - make the repository runnable for Python development without guessing package or environment setup
@@ -54,6 +54,22 @@ Acceptance criteria:
 - a fresh clone can bootstrap a Python environment locally
 - required environment variables are documented
 - developers can identify how to run the notebook and future scripts
+
+### T0.4 Establish CI guardrails for the tracked repository
+Status: `completed`
+
+Goal:
+- make CI reflect the actual tracked repository and remain useful as implementation begins
+
+Implementation steps:
+1. Remove template-era validation requirements for local-only directories that are intentionally not tracked.
+2. Add a Python-based CI baseline that bootstraps the environment, validates repository structure, and runs tests.
+3. Add deterministic tests that simulate a clean checkout and validate notebook structure.
+
+Acceptance criteria:
+- CI passes on a clean clone without relying on ignored local files
+- the workflow bootstraps Python and runs automated tests
+- the baseline checks are specific to this project rather than the original template
 
 ## Milestone 1 - Polymarket API Connectivity
 

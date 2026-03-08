@@ -30,12 +30,12 @@ if [[ -f "requirements-dev.txt" ]]; then
 fi
 
 if [[ -f "pyproject.toml" && ! -f "requirements.txt" ]]; then
-  if rg -q "^\[project\]" pyproject.toml; then
+  if grep -qE "^\[project\]" pyproject.toml; then
     if ! pip install -e .; then
       echo "Warning: failed to install local project package."
       echo "If you are offline, rerun when network/dependencies are available."
     fi
-  elif rg -q "^\[tool\.poetry\]" pyproject.toml; then
+  elif grep -qE "^\[tool\.poetry\]" pyproject.toml; then
     echo "Detected Poetry project. Install dependencies with: poetry install"
   fi
 fi

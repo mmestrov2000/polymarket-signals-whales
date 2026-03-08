@@ -10,12 +10,18 @@ required_files=(
   "ARCHITECTURE.md"
   "TASKS.md"
   "README.md"
+  ".env.example"
+  "pyproject.toml"
+  "requirements-dev.txt"
   "docs/PLAYBOOK.md"
-  "prompts/prompts.md"
+  "notebooks/polymarket_connection_checks/00_api_connection.ipynb"
 )
 
 required_dirs=(
-  "skills"
+  "docs"
+  "notebooks"
+  "src"
+  "tests"
   "scripts"
   ".github/workflows"
 )
@@ -38,6 +44,11 @@ done
 
 if [[ ! -x "scripts/bootstrap_env.sh" ]]; then
   echo "Expected executable script: scripts/bootstrap_env.sh"
+  missing=1
+fi
+
+if [[ ! -x "scripts/validate_repo.sh" ]]; then
+  echo "Expected executable script: scripts/validate_repo.sh"
   missing=1
 fi
 

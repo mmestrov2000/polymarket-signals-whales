@@ -6,10 +6,26 @@ on:
   pull_request:
 
 jobs:
-  lint-test:
+  repo-guardrails:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Bootstrap environment
+        run: scripts/bootstrap_env.sh
       - name: Repo validation
         run: scripts/validate_repo.sh
+      - name: Notebook JSON validation
+        run: .venv/bin/python -m json.tool notebooks/polymarket_connection_checks/00_api_connection.ipynb > /dev/null
+      - name: Test
+        run: .venv/bin/pytest
