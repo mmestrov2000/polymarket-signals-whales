@@ -124,6 +124,8 @@ Its job is to verify:
 - WebSocket connectivity and message shape
 - key identifiers needed for later joins
 
+For Milestone 1 notebook work, launch `jupyter notebook` or `jupyter lab`, run the notebook top to bottom, and review the saved sample payloads under `data/raw/gamma/connection_checks/` and `data/raw/clob/connection_checks/`.
+
 ## Development Workflow
 
 - use one branch per scoped task

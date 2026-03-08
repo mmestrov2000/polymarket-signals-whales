@@ -2,6 +2,7 @@
 .worktrees/
 __pycache__/
 .pytest_cache/
+data/
 .env
 .env.*
 !.env.example

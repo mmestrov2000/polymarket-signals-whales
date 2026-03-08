@@ -74,7 +74,7 @@ Acceptance criteria:
 ## Milestone 1 - Polymarket API Connectivity
 
 ### T1.1 Verify Gamma and CLOB public REST access in the notebook
-Status: `pending`
+Status: `completed`
 
 Goal:
 - confirm that market metadata, price, and public market-state endpoints are reachable and useful
