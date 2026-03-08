@@ -1,7 +1,8 @@
-# Runtime dependencies for notebook-driven endpoint verification.
+# Runtime dependencies for notebook-driven endpoint verification and exploration.
 httpx>=0.27,<1.0
 python-dotenv>=1.0,<2.0
 jupyter>=1.1,<2.0
 py-clob-client>=0.34,<1.0
 websockets>=15.0,<16.0
 duckdb>=1.1,<2.0
+matplotlib>=3.9,<4.0

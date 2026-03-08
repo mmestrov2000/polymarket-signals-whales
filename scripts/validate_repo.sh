@@ -15,7 +15,9 @@ required_files=(
   "requirements-dev.txt"
   "docs/PLAYBOOK.md"
   "docs/endpoint_capability_matrix.md"
+  "docs/milestone2_live_exploration.md"
   "notebooks/polymarket_connection_checks/00_api_connection.ipynb"
+  "notebooks/market_data_exploration/00_live_market_walkthrough.ipynb"
 )
 
 required_dirs=(

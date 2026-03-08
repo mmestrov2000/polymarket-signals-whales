@@ -127,6 +127,12 @@ Its job is to verify:
 For Milestone 1 notebook work, launch `jupyter notebook` or `jupyter lab`, run the notebook top to bottom, and review the saved sample payloads under `data/raw/gamma/connection_checks/` and `data/raw/clob/connection_checks/`.
 Use `docs/endpoint_capability_matrix.md` as the concise follow-on reference for confirmed endpoint params, fields, and caveats.
 
+## Milestone 2 Exploration
+
+To test the current Milestone 2 collectors against real market data, use the runbook in [docs/milestone2_live_exploration.md](docs/milestone2_live_exploration.md) together with the walkthrough notebook at [notebooks/market_data_exploration/00_live_market_walkthrough.ipynb](notebooks/market_data_exploration/00_live_market_walkthrough.ipynb).
+
+The flow backfills one active market into isolated per-run storage, records a 300-second live market session for every token in that market, and visualizes historical prices, live top-of-book state, spreads, and captured trades from the normalized DuckDB warehouse.
+
 ## Development Workflow
 
 - use one branch per scoped task
@@ -161,12 +167,12 @@ Likely Polymarket sources:
 
 Completed:
 - project spec, architecture, and task plan
-- minimal repository scaffold
-- connection-check notebook placeholder
+- Milestone 1 connectivity notebook and endpoint capability matrix
+- Milestone 2 public clients, storage, sample backfill, and live market recorder
+- Milestone 2 live exploration notebook and runbook for local real-data walkthroughs
 
 Next:
-- Python project configuration and `.env.example`
-- Milestone 1 endpoint validation notebook work
+- Milestone 3 wallet-universe definition and wallet-history collection
 
 ## Important Risks
 
