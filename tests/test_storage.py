@@ -6,11 +6,11 @@ from decimal import Decimal
 
 import duckdb
 
-from src.clients.clob import PriceHistory, PriceHistoryPoint
+from src.clients.clob import OrderBookSnapshot, PriceHistory, PriceHistoryPoint
 from src.clients.data_api import TradeRecord
 from src.clients.gamma import GammaMarket
 from src.storage.raw import RawPayloadStore
-from src.storage.warehouse import PolymarketWarehouse
+from src.storage.warehouse import PolymarketWarehouse, TopOfBookSnapshot
 
 
 def test_raw_payload_store_uses_append_only_json_and_jsonl_layout(tmp_path) -> None:
@@ -131,7 +131,7 @@ def test_polymarket_warehouse_creates_schema_and_upserts_without_duplication(tmp
                 """
             ).fetchall()
         }
-        assert {"markets", "market_tokens", "price_history", "trades"} <= table_names
+        assert {"markets", "market_tokens", "order_book_snapshots", "price_history", "trades"} <= table_names
 
         market_count = connection.execute("SELECT COUNT(*) FROM markets").fetchone()[0]
         market_token_count = connection.execute("SELECT COUNT(*) FROM market_tokens").fetchone()[0]
@@ -164,3 +164,73 @@ def test_polymarket_warehouse_creates_schema_and_upserts_without_duplication(tmp
         assert stored_trade[1] == "BUY"
         assert stored_trade[2] == datetime(2026, 3, 8, 11, 5)
         assert stored_trade[3] == second_collection_time.replace(tzinfo=None)
+
+
+def test_polymarket_warehouse_upserts_top_of_book_snapshots_without_duplication(tmp_path) -> None:
+    database_path = tmp_path / "warehouse" / "polymarket.duckdb"
+    first_collection_time = datetime(2026, 3, 8, 12, 0, tzinfo=UTC)
+    second_collection_time = datetime(2026, 3, 8, 12, 5, tzinfo=UTC)
+
+    snapshot = TopOfBookSnapshot.from_order_book_snapshot(
+        OrderBookSnapshot(
+            market_id="0xcondition123",
+            asset_id="111",
+            bids=(),
+            asks=(),
+            last_trade_price=Decimal("0.50"),
+            tick_size=Decimal("0.01"),
+            min_order_size=None,
+            book_hash="0xbookhash123",
+            timestamp=datetime(2026, 3, 8, 11, 59, tzinfo=UTC),
+            neg_risk=False,
+        )
+    )
+    snapshot = TopOfBookSnapshot(
+        market_id=snapshot.market_id,
+        asset_id=snapshot.asset_id,
+        best_bid_price=Decimal("0.49"),
+        best_bid_size=Decimal("120"),
+        best_ask_price=Decimal("0.51"),
+        best_ask_size=Decimal("140"),
+        last_trade_price=snapshot.last_trade_price,
+        tick_size=snapshot.tick_size,
+        book_hash=snapshot.book_hash,
+        snapshot_time=snapshot.snapshot_time,
+    )
+
+    with PolymarketWarehouse(database_path) as warehouse:
+        assert warehouse.upsert_order_book_snapshots([snapshot], collection_time=first_collection_time) == 1
+        assert (
+            warehouse.upsert_order_book_snapshots(
+                [snapshot, snapshot],
+                collection_time=second_collection_time,
+            )
+            == 1
+        )
+
+    with duckdb.connect(str(database_path), read_only=True) as connection:
+        snapshot_count = connection.execute(
+            "SELECT COUNT(*) FROM order_book_snapshots"
+        ).fetchone()[0]
+        assert snapshot_count == 1
+
+        stored_snapshot = connection.execute(
+            """
+            SELECT
+                asset_id,
+                market_id,
+                best_bid_price,
+                best_ask_price,
+                mid_price,
+                spread,
+                collection_time_utc
+            FROM order_book_snapshots
+            """
+        ).fetchone()
+        assert stored_snapshot[0] == "111"
+        assert stored_snapshot[1] == "0xcondition123"
+        assert stored_snapshot[2] == Decimal("0.490000000000000000")
+        assert stored_snapshot[3] == Decimal("0.510000000000000000")
+        assert stored_snapshot[4] == Decimal("0.500000000000000000")
+        assert stored_snapshot[5] == Decimal("0.020000000000000000")
+        assert stored_snapshot[6] == second_collection_time.replace(tzinfo=None)

@@ -220,7 +220,7 @@ Notes:
 - `tests/test_sample_market_backfill.py` and `tests/test_backfill_sample_markets_script.py` cover deterministic selection, end-to-end raw/normalized persistence, partial-failure reporting, and the script output contract.
 
 ### T2.4 Build a live recorder for trades and top-of-book snapshots
-Status: `pending`
+Status: `completed`
 
 Goal:
 - start forward collection for the features that historical APIs may not support well
@@ -234,6 +234,12 @@ Acceptance criteria:
 - the recorder can run continuously for a meaningful session
 - captured stream data lands in both raw and normalized storage
 - connection interruptions are logged instead of silently ignored
+
+Notes:
+- `src/ingestion/live_market_recorder.py` now provides an async live recorder that subscribes to the public market-channel WebSocket, persists append-only raw message captures, normalizes top-of-book snapshots, and opportunistically upserts websocket trade events when trade-shaped payloads are present.
+- `src/storage/warehouse.py` now provisions an `order_book_snapshots` DuckDB table with idempotent upserts for best-bid/best-ask state, spread, and mid-price, while reusing the existing `trades` table for forward-collected websocket trade rows.
+- `scripts/record_live_market_stream.py` adds the one-command entry point for bounded live recording sessions with asset selection, reconnect/time-out controls, and session summaries.
+- `tests/test_live_market_recorder.py` and `tests/test_storage.py` cover mixed websocket normalization, raw plus normalized persistence, receive-timeout reconnect warnings, and `order_book_snapshots` upsert behavior.
 
 ## Milestone 3 - Whale Wallet Data Collection
 

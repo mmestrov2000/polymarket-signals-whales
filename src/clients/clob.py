@@ -93,21 +93,7 @@ class ClobClient(RestJsonClient):
 
     def get_book(self, token_id: str) -> OrderBookSnapshot:
         payload = self.get_json("/book", params={"token_id": token_id})
-        if not isinstance(payload, dict):
-            raise UnexpectedPayloadError("Expected /book to return a JSON object.")
-
-        return OrderBookSnapshot(
-            market_id=parse_optional_str(payload.get("market")),
-            asset_id=parse_optional_str(payload.get("asset_id")),
-            bids=self._parse_levels(payload.get("bids")),
-            asks=self._parse_levels(payload.get("asks")),
-            last_trade_price=parse_optional_decimal(payload.get("last_trade_price")),
-            tick_size=parse_optional_decimal(payload.get("tick_size")),
-            min_order_size=parse_optional_decimal(payload.get("min_order_size")),
-            book_hash=parse_optional_str(payload.get("hash")),
-            timestamp=parse_optional_datetime(payload.get("timestamp")),
-            neg_risk=parse_optional_bool(payload.get("neg_risk")),
-        )
+        return self.parse_order_book_snapshot(payload)
 
     def get_price(self, token_id: str, side: str) -> PriceQuote:
         normalized_side = side.strip().upper()
@@ -168,6 +154,28 @@ class ClobClient(RestJsonClient):
         )
 
     @staticmethod
+    def parse_order_book_snapshot(payload: Any) -> OrderBookSnapshot:
+        if not isinstance(payload, dict):
+            raise UnexpectedPayloadError("Expected an order-book payload to be a JSON object.")
+
+        return OrderBookSnapshot(
+            market_id=parse_optional_str(payload.get("market")),
+            asset_id=parse_optional_str(_first_defined(payload, "asset_id", "asset")),
+            bids=ClobClient._parse_levels(payload.get("bids")),
+            asks=ClobClient._parse_levels(payload.get("asks")),
+            last_trade_price=parse_optional_decimal(
+                _first_defined(payload, "last_trade_price", "lastTradePrice")
+            ),
+            tick_size=parse_optional_decimal(_first_defined(payload, "tick_size", "tickSize")),
+            min_order_size=parse_optional_decimal(
+                _first_defined(payload, "min_order_size", "minOrderSize")
+            ),
+            book_hash=parse_optional_str(_first_defined(payload, "hash", "book_hash")),
+            timestamp=parse_optional_datetime(payload.get("timestamp")),
+            neg_risk=parse_optional_bool(_first_defined(payload, "neg_risk", "negRisk")),
+        )
+
+    @staticmethod
     def _parse_levels(raw_levels: Any) -> tuple[OrderBookLevel, ...]:
         if not isinstance(raw_levels, list):
             return ()
@@ -180,3 +188,10 @@ class ClobClient(RestJsonClient):
             for level in raw_levels
             if isinstance(level, dict)
         )
+
+
+def _first_defined(payload: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in payload and payload[key] is not None:
+            return payload[key]
+    return None
