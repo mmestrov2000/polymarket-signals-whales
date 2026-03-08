@@ -52,6 +52,7 @@ def test_connection_notebook_contains_milestone_1_checks() -> None:
     notebook_source = "\n".join("".join(cell["source"]) for cell in notebook["cells"])
 
     assert "load_dotenv" in notebook_source
+    assert "sys.path.insert(0, str(REPO_ROOT))" in notebook_source
     assert "save_sample_payload" in notebook_source
     assert "parse_clob_token_ids" in notebook_source
     assert "extract_records" in notebook_source
