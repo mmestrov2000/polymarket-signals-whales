@@ -47,22 +47,36 @@ def test_connection_notebook_is_valid_json() -> None:
     assert any(cell["cell_type"] == "markdown" for cell in notebook["cells"])
 
 
-def test_connection_notebook_contains_t1_1_checks() -> None:
+def test_connection_notebook_contains_t1_1_and_t1_2_checks() -> None:
     notebook = load_connection_notebook()
     notebook_source = "\n".join("".join(cell["source"]) for cell in notebook["cells"])
 
     assert "load_dotenv" in notebook_source
     assert "save_sample_payload" in notebook_source
     assert "parse_clob_token_ids" in notebook_source
+    assert "extract_records" in notebook_source
+    assert "summarize_observed_fields" in notebook_source
     assert "/markets" in notebook_source
     assert "/book" in notebook_source
     assert "/price" in notebook_source
     assert "/prices-history" in notebook_source
+    assert "POLYMARKET_DATA_API_BASE_URL" in notebook_source
+    assert "data/raw/data_api/connection_checks" in notebook_source
+    assert "/v1/leaderboard" in notebook_source
+    assert "/positions" in notebook_source
+    assert "/closed-positions" in notebook_source
+    assert "/activity" in notebook_source
+    assert "/trades" in notebook_source
+    assert "/holders" in notebook_source
+    assert "/oi" in notebook_source
+    assert "Selected Data API wallet seed" in notebook_source
+    assert "wallet_identity" in notebook_source
+    assert "Known gaps or blockers" in notebook_source
     assert "conditionId" in notebook_source
     assert "asset_id" in notebook_source
     assert "Gamma.conditionId == CLOB book.market" in notebook_source
     assert "Gamma.clobTokenIds[0] == CLOB book.asset_id" in notebook_source
-    assert "Deferred to T1.2" in notebook_source
+    assert "Deferred to T1.2" not in notebook_source
     assert "Deferred to T1.3" in notebook_source
     assert "TODO: add Gamma API checks and persist representative payload samples." not in notebook_source
     assert "TODO: add CLOB API checks for market state, price history, and trades." not in notebook_source

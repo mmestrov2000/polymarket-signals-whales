@@ -90,7 +90,7 @@ Acceptance criteria:
 - required identifiers for cross-endpoint joins are documented
 
 ### T1.2 Verify Data API wallet and trade-related endpoints in the notebook
-Status: `pending`
+Status: `completed`
 
 Goal:
 - prove which wallet-level and trade-history endpoints can support whale analysis
@@ -104,6 +104,12 @@ Acceptance criteria:
 - the repository has a written record of which wallet endpoints are usable
 - sample responses exist for at least one wallet-related endpoint
 - known gaps for wallet attribution are documented
+
+Notes:
+- `notebooks/polymarket_connection_checks/00_api_connection.ipynb` now checks Data API leaderboard, positions, closed positions, activity, trades, holders, and open-interest endpoints.
+- The notebook saves Data API samples under `data/raw/data_api/connection_checks/` and prints field-coverage plus wallet-attribution caveats inline.
+- Live verification showed `GET /activity` and `GET /trades` expose `proxyWallet`, `side`, `size`, `outcome`, and `timestamp`, while `GET /holders` and `GET /oi` are useful concentration inputs but not trade logs.
+- `GET /positions` remained reachable but returned an empty snapshot for the sampled leaderboard wallet, so open-position coverage should be treated as wallet-dependent rather than guaranteed.
 
 ### T1.3 Verify WebSocket connectivity and message shape
 Status: `pending`
