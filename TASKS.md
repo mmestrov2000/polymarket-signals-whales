@@ -306,6 +306,10 @@ Notes:
 - `src/signals/wallet_profiles.py` now computes time-aware wallet profiles as of an explicit cutoff time, including realized PnL, ROI, hit rate, average closed-position cost, activity counts, activity volume, and last-seen timestamps.
 - `src/storage/warehouse.py` now persists profile rows in `wallet_profiles`, and the collector emits one row per seeded wallet even when a wallet has empty history so sample-size context remains explicit.
 - Category-specific profitability, market specialization, and holding-period metrics remain out of scope for v1 because the currently confirmed schemas do not expose stable category fields or position-open timestamps.
+- `src/research/wallet_exploration.py` now provides read-only helper queries for latest wallet raw captures, seed-metadata joins onto `wallet_profiles`, per-wallet activity trade views, cumulative closed-position timelines, and open-position snapshots.
+- `notebooks/wallet_data_exploration/00_wallet_walkthrough.ipynb` now reuses `run_wallet_backfill(...)` against isolated per-run storage, adds widget-driven cohort comparisons, and supports one-wallet drilldowns for activity, closed positions, and open positions without introducing new production behavior.
+- `notebook_bootstrap.py` now lets the wallet exploration notebook force the repository root to the front of `sys.path` and evict preloaded foreign `src` modules so Jupyter import collisions do not break `src.ingestion` or `src.research` imports.
+- `docs/milestone3_wallet_exploration.md` now documents the wallet exploration workflow, import checks, expected run artifacts, and review checklist for Milestone 3 research sessions.
 
 ## Milestone 4 - Signal Feature Engineering
 

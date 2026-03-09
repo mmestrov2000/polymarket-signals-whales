@@ -62,8 +62,12 @@ The detailed plan lives in [TASKS.md](TASKS.md).
 ├─ AGENTS.md
 ├─ docs/
 ├─ notebooks/
-│  └─ polymarket_connection_checks/
-│     └─ 00_api_connection.ipynb
+│  ├─ polymarket_connection_checks/
+│  │  └─ 00_api_connection.ipynb
+│  ├─ market_data_exploration/
+│  │  └─ 00_live_market_walkthrough.ipynb
+│  └─ wallet_data_exploration/
+│     └─ 00_wallet_walkthrough.ipynb
 ├─ scripts/
 ├─ src/
 │  ├─ clients/
@@ -133,6 +137,12 @@ To test the current Milestone 2 collectors against real market data, use the run
 
 The flow backfills one active market into isolated per-run storage, records a 300-second live market session for every token in that market, and visualizes historical prices, live top-of-book state, spreads, and captured trades from the normalized DuckDB warehouse.
 
+## Milestone 3 Exploration
+
+To explore the Milestone 3 wallet cohort interactively, use the runbook in [docs/milestone3_wallet_exploration.md](docs/milestone3_wallet_exploration.md) together with the notebook at [notebooks/wallet_data_exploration/00_wallet_walkthrough.ipynb](notebooks/wallet_data_exploration/00_wallet_walkthrough.ipynb).
+
+The flow reuses `POLYMARKET_EXPLORATION_RUN_ID`, backfills a leaderboard-seeded wallet cohort into isolated per-run storage, and visualizes wallet-universe selection, cohort-level profile comparisons, and one-wallet drilldowns for activity, closed positions, and open positions.
+
 ## Development Workflow
 
 - use one branch per scoped task
@@ -170,9 +180,10 @@ Completed:
 - Milestone 1 connectivity notebook and endpoint capability matrix
 - Milestone 2 public clients, storage, sample backfill, and live market recorder
 - Milestone 2 live exploration notebook and runbook for local real-data walkthroughs
+- Milestone 3 wallet backfill, wallet profiles, and wallet exploration notebook/runbook
 
 Next:
-- Milestone 3 wallet-universe definition and wallet-history collection
+- Milestone 4 signal feature engineering
 
 ## Important Risks
 

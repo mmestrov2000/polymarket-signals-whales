@@ -21,6 +21,10 @@ def load_m2_exploration_notebook() -> dict:
     return load_notebook("notebooks/market_data_exploration/00_live_market_walkthrough.ipynb")
 
 
+def load_m3_exploration_notebook() -> dict:
+    return load_notebook("notebooks/wallet_data_exploration/00_wallet_walkthrough.ipynb")
+
+
 def test_validate_repo_passes_for_tracked_checkout(tmp_path: Path) -> None:
     tracked_files = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
@@ -122,6 +126,35 @@ def test_m2_exploration_notebook_contains_walkthrough_anchors() -> None:
     assert "No live trades were captured during this session" in notebook_source
 
 
+def test_m3_exploration_notebook_is_valid_json() -> None:
+    notebook = load_m3_exploration_notebook()
+
+    assert notebook["nbformat"] == 4
+    assert any(cell["cell_type"] == "markdown" for cell in notebook["cells"])
+    assert any(cell["cell_type"] == "code" for cell in notebook["cells"])
+
+
+def test_m3_exploration_notebook_contains_walkthrough_anchors() -> None:
+    notebook = load_m3_exploration_notebook()
+    notebook_source = "\n".join("".join(cell["source"]) for cell in notebook["cells"])
+
+    assert "POLYMARKET_EXPLORATION_RUN_ID" in notebook_source
+    assert "notebook_bootstrap.py" in notebook_source
+    assert "prepare_repo_imports(REPO_ROOT)" in notebook_source
+    assert "run_wallet_backfill" in notebook_source
+    assert "wallet_profiles" in notebook_source
+    assert "wallet_closed_positions" in notebook_source
+    assert "wallet_positions" in notebook_source
+    assert "wallet_universe_leaderboard" in notebook_source
+    assert "wallet_seed_list" in notebook_source
+    assert "duckdb" in notebook_source
+    assert "ipywidgets" in notebook_source
+    assert "matplotlib" in notebook_source
+    assert "notebook" in notebook_source
+    assert "data/runs" in notebook_source
+    assert "Partial failures were captured during this run" in notebook_source
+
+
 def test_m2_exploration_docs_are_linked() -> None:
     readme_content = (REPO_ROOT / "README.md").read_text()
     runbook_content = (REPO_ROOT / "docs/milestone2_live_exploration.md").read_text()
@@ -131,6 +164,18 @@ def test_m2_exploration_docs_are_linked() -> None:
     assert "scripts/bootstrap_env.sh" in runbook_content
     assert "scripts/backfill_sample_markets.py" in runbook_content
     assert "scripts/record_live_market_stream.py" in runbook_content
+    assert "POLYMARKET_EXPLORATION_RUN_ID" in runbook_content
+    assert "data/runs/" in runbook_content
+
+
+def test_m3_exploration_docs_are_linked() -> None:
+    readme_content = (REPO_ROOT / "README.md").read_text()
+    runbook_content = (REPO_ROOT / "docs/milestone3_wallet_exploration.md").read_text()
+
+    assert "docs/milestone3_wallet_exploration.md" in readme_content
+    assert "notebooks/wallet_data_exploration/00_wallet_walkthrough.ipynb" in readme_content
+    assert "scripts/bootstrap_env.sh" in runbook_content
+    assert "run_wallet_backfill(...)" in runbook_content
     assert "POLYMARKET_EXPLORATION_RUN_ID" in runbook_content
     assert "data/runs/" in runbook_content
 
