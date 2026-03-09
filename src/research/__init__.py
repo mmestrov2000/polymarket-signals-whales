@@ -10,6 +10,21 @@ from src.research.event_dataset import (
     TradeCostAssumptions,
     materialize_event_dataset,
 )
+from src.research.signal_classifier import (
+    DEFAULT_SIGNAL_CLASSIFIER_OUTPUT_DIR,
+    BINARY_FEATURE_NAMES,
+    NUMERIC_FEATURE_NAMES,
+    ClassificationMetrics,
+    CoefficientWeight,
+    LogisticRegressionConfig,
+    NumericFeaturePreprocessing,
+    SignalClassifierArtifactPaths,
+    SignalClassifierExperimentError,
+    SignalClassifierRun,
+    SignalClassifierRunResult,
+    StrategyMetrics,
+    run_signal_classifier_experiments,
+)
 from src.research.wallet_exploration import (
     DEFAULT_WALLET_TABLES,
     SUPPORTED_COHORT_METRICS,
@@ -35,12 +50,24 @@ from src.research.wallet_exploration import (
 
 __all__ = [
     "DEFAULT_EVENT_DATASET_OUTPUT_DIR",
+    "DEFAULT_SIGNAL_CLASSIFIER_OUTPUT_DIR",
     "DEFAULT_WALLET_TABLES",
+    "BINARY_FEATURE_NAMES",
+    "ClassificationMetrics",
+    "CoefficientWeight",
     "DatasetIntegrityError",
     "EventDatasetBuild",
     "EventDatasetBuildConfig",
     "EventDatasetBuildResult",
     "EventLabelConfig",
+    "LogisticRegressionConfig",
+    "NUMERIC_FEATURE_NAMES",
+    "NumericFeaturePreprocessing",
+    "SignalClassifierArtifactPaths",
+    "SignalClassifierExperimentError",
+    "SignalClassifierRun",
+    "SignalClassifierRunResult",
+    "StrategyMetrics",
     "SUPPORTED_COHORT_METRICS",
     "TradeCostAssumptions",
     "WalletActivityTrade",
@@ -61,5 +88,6 @@ __all__ = [
     "load_jsonl_capture",
     "market_label",
     "materialize_event_dataset",
+    "run_signal_classifier_experiments",
     "wallet_display_name",
 ]
