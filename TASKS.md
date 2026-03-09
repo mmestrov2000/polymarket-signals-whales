@@ -314,7 +314,7 @@ Notes:
 ## Milestone 4 - Signal Feature Engineering
 
 ### T4.1 Implement market anomaly feature calculations
-Status: `pending`
+Status: `completed`
 
 Goal:
 - compute market-only signals from trades, prices, and forward-collected liquidity state
@@ -329,8 +329,13 @@ Acceptance criteria:
 - every feature definition is documented and testable
 - unsupported historical liquidity features are gated behind forward data availability
 
+Notes:
+- `src/signals/market_anomalies.py` now computes event-time market features from normalized trades, price-history points, and optional top-of-book snapshots, including rolling trade-count and volume baselines, z-scores, order-flow imbalance, short and medium return windows, and liquidity-thinning or spread-widening context.
+- Liquidity features are explicitly gated behind forward-collected order-book data: when no matching top-of-book snapshots are available, the feature record keeps `liquidity_features_available=False` and leaves spread or depth metrics unset instead of inferring unsupported historical values.
+- `tests/test_market_anomalies.py` covers deterministic spike math, return windows, and the liquidity-gating path.
+
 ### T4.2 Implement wallet-quality feature calculations
-Status: `pending`
+Status: `completed`
 
 Goal:
 - summarize the wallets behind a candidate move into usable event-time features
@@ -345,8 +350,13 @@ Acceptance criteria:
 - concentration and quality metrics are deterministic
 - sparse-wallet cases are handled explicitly
 
+Notes:
+- `src/signals/wallet_features.py` now converts event-window wallet activity plus time-safe `wallet_profiles` into wallet summary features, including active-wallet counts, profiled-volume share, top-wallet share, HHI concentration, weighted average ROI, weighted average hit rate, weighted realized PnL, and a deterministic sample-size-adjusted wallet quality score.
+- The wallet summary logic explicitly marks sparse participation sets and preserves per-wallet context for explanation payloads by carrying trade counts, order-flow, and matched profile metrics for each active wallet.
+- `tests/test_wallet_features.py` covers empty, sparse, and mixed-quality wallet participation sets, including the latest-valid-profile selection rule at event time.
+
 ### T4.3 Build the event detector and explanation payload
-Status: `pending`
+Status: `completed`
 
 Goal:
 - produce interpretable candidate events that combine market triggers and active-wallet context
@@ -360,6 +370,11 @@ Acceptance criteria:
 - event records are generated from historical data
 - each event includes trigger reason, timestamps, and participating-wallet context
 - the output is understandable enough to review in notebooks or tests
+
+Notes:
+- `src/signals/event_detector.py` now evaluates historical candidate timestamps, applies interpretable market-anomaly trigger rules with cooldown handling, joins the active-wallet summary, and emits `SignalEvent` records with a JSON-safe explanation payload containing trigger rules, market context, and participating-wallet context.
+- `src/storage/warehouse.py` now provisions a normalized `signal_events` table and idempotent `upsert_signal_events(...)` persistence so generated events can be reviewed later from DuckDB without relying on notebooks as the source of truth.
+- `tests/test_signal_event_detector.py` and `tests/test_storage.py` cover event emission, explanation payload structure, and repeated `signal_events` upserts without duplication.
 
 ## Milestone 5 - Dataset Generation
 
