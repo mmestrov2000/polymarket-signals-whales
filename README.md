@@ -143,6 +143,12 @@ To explore the Milestone 3 wallet cohort interactively, use the runbook in [docs
 
 The flow reuses `POLYMARKET_EXPLORATION_RUN_ID`, backfills a leaderboard-seeded wallet cohort into isolated per-run storage, and visualizes wallet-universe selection, cohort-level profile comparisons, and one-wallet drilldowns for activity, closed positions, and open positions.
 
+## Milestone 1-7 Guided Tour
+
+For a teacher-style local walkthrough that starts with the notebooks and ends with the Milestone 7 walk-forward report, use [docs/milestone7_research_walkthrough.md](docs/milestone7_research_walkthrough.md).
+
+The runbook reuses one shared run id and warehouse path so you can move from connectivity checks to market exploration, wallet exploration, signal-event generation, dataset materialization, classifier training, and backtesting in one session.
+
 ## Development Workflow
 
 - use one branch per scoped task
@@ -181,9 +187,13 @@ Completed:
 - Milestone 2 public clients, storage, sample backfill, and live market recorder
 - Milestone 2 live exploration notebook and runbook for local real-data walkthroughs
 - Milestone 3 wallet backfill, wallet profiles, and wallet exploration notebook/runbook
+- Milestone 4 market and wallet signal feature engineering with stored signal events
+- Milestone 5 dataset generation with QA and leakage checks
+- Milestone 6 baseline experiments and logistic-regression classifier runs
+- Milestone 7 walk-forward backtesting and strategy comparison reporting
 
 Next:
-- Milestone 4 signal feature engineering
+- Milestone 8 paper trading
 
 ## Important Risks
 
