@@ -18,7 +18,7 @@ from src.signals import (
     WalletSummaryFeatures,
 )
 from src.storage.raw import RawPayloadStore
-from src.storage.warehouse import PolymarketWarehouse, TopOfBookSnapshot
+from src.storage.warehouse import EventDatasetRow, PolymarketWarehouse, TopOfBookSnapshot
 
 
 def test_raw_payload_store_uses_append_only_json_and_jsonl_layout(tmp_path) -> None:
@@ -486,3 +486,103 @@ def test_polymarket_warehouse_upserts_signal_events_without_duplication(tmp_path
         explanation_payload = json.loads(stored_event[4])
         assert explanation_payload["wallet_context"]["participants"][0]["wallet_address"] == "0xwalletA"
         assert stored_event[5] == second_collection_time.replace(tzinfo=None)
+
+
+def test_polymarket_warehouse_upserts_event_dataset_rows_without_duplication(tmp_path) -> None:
+    database_path = tmp_path / "warehouse" / "polymarket.duckdb"
+    first_collection_time = datetime(2026, 3, 9, 13, 0, tzinfo=UTC)
+    second_collection_time = datetime(2026, 3, 9, 13, 30, tzinfo=UTC)
+
+    row = EventDatasetRow(
+        dataset_row_id="dataset-row-123",
+        dataset_build_id="build-123",
+        dataset_split="train",
+        event_id="event-123",
+        asset_id="111",
+        condition_id="0xcondition123",
+        event_time_utc=datetime(2026, 3, 9, 12, 0, tzinfo=UTC),
+        source_event_collection_time_utc=datetime(2026, 3, 9, 12, 30, tzinfo=UTC),
+        direction="up",
+        trigger_reason="volume_spike",
+        recent_trade_count=3,
+        recent_volume_usdc=Decimal("300"),
+        volume_zscore=Decimal("2.5"),
+        trade_count_zscore=Decimal("2.0"),
+        order_flow_imbalance=Decimal("0.60"),
+        short_return=Decimal("0.08"),
+        medium_return=Decimal("0.12"),
+        liquidity_features_available=True,
+        latest_price=Decimal("0.72"),
+        latest_mid_price=Decimal("0.72"),
+        latest_spread_bps=Decimal("555.55"),
+        spread_change_bps=Decimal("227.60"),
+        top_of_book_depth_usdc=Decimal("79.40"),
+        depth_change_ratio=Decimal("-0.63"),
+        depth_imbalance=Decimal("-0.11"),
+        active_wallet_count=2,
+        profiled_wallet_count=2,
+        sparse_wallet_set=False,
+        profiled_volume_share=Decimal("1"),
+        top_wallet_share=Decimal("0.83"),
+        concentration_hhi=Decimal("0.72"),
+        weighted_average_quality=Decimal("0.31"),
+        weighted_average_realized_roi=Decimal("0.18"),
+        weighted_average_hit_rate=Decimal("0.69"),
+        weighted_average_realized_pnl=Decimal("72"),
+        entry_price=Decimal("0.72"),
+        entry_price_time_utc=datetime(2026, 3, 9, 12, 0, tzinfo=UTC),
+        assumed_round_trip_cost_bps=Decimal("605.55"),
+        primary_label_name="profitable_after_costs",
+        primary_label_horizon_minutes=15,
+        primary_label_continuation=True,
+        primary_label_reversion=False,
+        primary_label_profitable=True,
+        primary_directional_return_bps=Decimal("833.333333333333333333"),
+        primary_net_pnl_bps=Decimal("227.783333333333333333"),
+        primary_exit_price=Decimal("0.78"),
+        primary_exit_time_utc=datetime(2026, 3, 9, 12, 15, tzinfo=UTC),
+        horizon_labels_json={
+            "15m": {
+                "continuation": True,
+                "net_pnl_bps": "227.783333333333333333",
+                "profitable_after_costs": True,
+            }
+        },
+    )
+
+    with PolymarketWarehouse(database_path) as warehouse:
+        assert warehouse.upsert_event_dataset_rows([row], collection_time=first_collection_time) == 1
+        assert warehouse.upsert_event_dataset_rows([row, row], collection_time=second_collection_time) == 1
+
+    with duckdb.connect(str(database_path), read_only=True) as connection:
+        table_names = {
+            row_name[0]
+            for row_name in connection.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'main'
+                """
+            ).fetchall()
+        }
+        assert "event_dataset_rows" in table_names
+
+        row_count = connection.execute("SELECT COUNT(*) FROM event_dataset_rows").fetchone()[0]
+        assert row_count == 1
+
+        stored_row = connection.execute(
+            """
+            SELECT
+                dataset_build_id,
+                primary_label_name,
+                primary_label_profitable,
+                horizon_labels_json,
+                collection_time_utc
+            FROM event_dataset_rows
+            """
+        ).fetchone()
+        assert stored_row[0] == "build-123"
+        assert stored_row[1] == "profitable_after_costs"
+        assert stored_row[2] is True
+        assert json.loads(stored_row[3])["15m"]["continuation"] is True
+        assert stored_row[4] == second_collection_time.replace(tzinfo=None)

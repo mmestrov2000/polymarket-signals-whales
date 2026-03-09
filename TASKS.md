@@ -379,7 +379,7 @@ Notes:
 ## Milestone 5 - Dataset Generation
 
 ### T5.1 Define labels and trade-cost assumptions
-Status: `pending`
+Status: `completed`
 
 Goal:
 - make the research target executable and leakage-safe
@@ -395,7 +395,7 @@ Acceptance criteria:
 - label generation does not use information from after prediction time
 
 ### T5.2 Build the event dataset pipeline
-Status: `pending`
+Status: `completed`
 
 Goal:
 - join market features, wallet features, and labels into training rows
@@ -411,7 +411,7 @@ Acceptance criteria:
 - train and validation splits are time ordered
 
 ### T5.3 Add dataset QA and leakage checks
-Status: `pending`
+Status: `completed`
 
 Goal:
 - catch data errors before model training begins
@@ -425,6 +425,14 @@ Acceptance criteria:
 - dataset builds fail loudly on obvious integrity issues
 - leakage checks cover wallet features and future labels
 - a QA summary is saved with each dataset run
+
+Notes:
+- `src/research/event_dataset.py` now defines explicit 5m, 15m, and 60m post-event labels using the last price at or before event time as the entry reference and the first price at or after each horizon as the exit reference, with the 15m `profitable_after_costs` label serving as the primary training target.
+- Trade-cost assumptions are encoded in `TradeCostAssumptions`: round-trip labels subtract event-time spread where available plus fixed per-side fee and slippage assumptions, so continuation, reversion, and net-PnL labels are reproducible and do not look past the trigger timestamp for cost inputs.
+- `src/storage/warehouse.py` now provisions an `event_dataset_rows` table plus idempotent `upsert_event_dataset_rows(...)` persistence so training rows remain traceable back to `signal_events`, their source collection timestamps, and the build identifier used to materialize the dataset.
+- `materialize_event_dataset(...)` now loads stored `signal_events` and deduplicated `price_history`, joins trigger-time market and wallet summary features to future labels, assigns time-ordered `train`/`validation` splits, and writes per-build `summary.json` plus `qa_report.json` artifacts under `data/research/event_datasets/`.
+- Dataset QA now checks for duplicate events, null-heavy required columns, impossible timestamps, wallet-profile leakage via participant `profile_as_of_time_utc`, and future-label leakage via entry or exit timestamps; failing QA raises a hard error after saving the report so bad builds are visible but not persisted.
+- `scripts/build_event_dataset.py` provides an optional CLI entrypoint for the warehouse-backed build path, and `tests/test_event_dataset.py`, `tests/test_build_event_dataset_script.py`, and `tests/test_storage.py` cover successful builds, QA failure handling, script output, and repeated `event_dataset_rows` upserts without duplication.
 
 ## Milestone 6 - Signal Classifier Training
 
