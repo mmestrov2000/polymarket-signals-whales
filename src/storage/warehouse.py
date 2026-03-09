@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ import duckdb
 from src.clients.clob import OrderBookSnapshot, PriceHistory
 from src.clients.data_api import ClosedPosition, PositionSnapshot, TradeRecord
 from src.clients.gamma import GammaMarket
-from src.signals import WalletProfile
+from src.signals import SignalEvent, WalletProfile
 
 
 DEFAULT_WAREHOUSE_PATH = Path("data/warehouse/polymarket.duckdb")
@@ -220,6 +221,35 @@ class PolymarketWarehouse:
                 first_activity_time_utc TIMESTAMP,
                 last_activity_time_utc TIMESTAMP,
                 last_closed_position_time_utc TIMESTAMP,
+                source VARCHAR NOT NULL,
+                collection_time_utc TIMESTAMP NOT NULL,
+                updated_at_utc TIMESTAMP NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS signal_events (
+                event_id VARCHAR PRIMARY KEY,
+                asset_id VARCHAR,
+                condition_id VARCHAR,
+                event_time_utc TIMESTAMP NOT NULL,
+                direction VARCHAR,
+                trigger_reason VARCHAR NOT NULL,
+                trigger_rules_json VARCHAR NOT NULL,
+                recent_trade_count INTEGER NOT NULL,
+                recent_volume_usdc {DECIMAL_SQL_TYPE} NOT NULL,
+                volume_zscore {DECIMAL_SQL_TYPE},
+                trade_count_zscore {DECIMAL_SQL_TYPE},
+                order_flow_imbalance {DECIMAL_SQL_TYPE},
+                short_return {DECIMAL_SQL_TYPE},
+                medium_return {DECIMAL_SQL_TYPE},
+                liquidity_features_available BOOLEAN NOT NULL,
+                active_wallet_count INTEGER NOT NULL,
+                profiled_wallet_count INTEGER NOT NULL,
+                top_wallet_share {DECIMAL_SQL_TYPE},
+                weighted_average_quality {DECIMAL_SQL_TYPE},
+                explanation_payload_json VARCHAR NOT NULL,
                 source VARCHAR NOT NULL,
                 collection_time_utc TIMESTAMP NOT NULL,
                 updated_at_utc TIMESTAMP NOT NULL
@@ -750,6 +780,89 @@ class PolymarketWarehouse:
             raise
 
         return len(snapshot_rows)
+
+    def upsert_signal_events(
+        self,
+        events: Iterable[SignalEvent],
+        *,
+        source: str = "signals.event_detector",
+        collection_time: datetime | None = None,
+    ) -> int:
+        collected_at = _normalize_utc_timestamp(collection_time or datetime.now(UTC))
+        event_rows: dict[str, tuple[object, ...]] = {}
+
+        for event in events:
+            event_rows[event.event_id] = (
+                event.event_id,
+                event.asset_id,
+                event.condition_id,
+                _normalize_utc_timestamp(event.event_time_utc),
+                event.direction,
+                event.trigger_reason,
+                json.dumps([rule.rule for rule in event.trigger_rules], sort_keys=True),
+                event.market_features.recent_trade_count,
+                event.market_features.recent_volume_usdc,
+                event.market_features.volume_zscore,
+                event.market_features.trade_count_zscore,
+                event.market_features.order_flow_imbalance,
+                event.market_features.short_return,
+                event.market_features.medium_return,
+                event.market_features.liquidity_features_available,
+                event.wallet_summary.active_wallet_count,
+                event.wallet_summary.profiled_wallet_count,
+                event.wallet_summary.top_wallet_share,
+                event.wallet_summary.weighted_average_quality,
+                json.dumps(event.explanation_payload, sort_keys=True),
+                source,
+                collected_at,
+                collected_at,
+            )
+
+        if not event_rows:
+            return 0
+
+        event_ids = [(event_id,) for event_id in event_rows]
+
+        self._begin_transaction()
+        try:
+            self._connection.executemany("DELETE FROM signal_events WHERE event_id = ?", event_ids)
+            self._connection.executemany(
+                """
+                INSERT INTO signal_events (
+                    event_id,
+                    asset_id,
+                    condition_id,
+                    event_time_utc,
+                    direction,
+                    trigger_reason,
+                    trigger_rules_json,
+                    recent_trade_count,
+                    recent_volume_usdc,
+                    volume_zscore,
+                    trade_count_zscore,
+                    order_flow_imbalance,
+                    short_return,
+                    medium_return,
+                    liquidity_features_available,
+                    active_wallet_count,
+                    profiled_wallet_count,
+                    top_wallet_share,
+                    weighted_average_quality,
+                    explanation_payload_json,
+                    source,
+                    collection_time_utc,
+                    updated_at_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(event_rows.values()),
+            )
+            self._commit_transaction()
+        except Exception:
+            self._rollback_transaction()
+            raise
+
+        return len(event_rows)
 
     def _begin_transaction(self) -> None:
         self._connection.execute("BEGIN TRANSACTION")

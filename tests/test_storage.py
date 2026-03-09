@@ -9,7 +9,14 @@ import duckdb
 from src.clients.clob import OrderBookSnapshot, PriceHistory, PriceHistoryPoint
 from src.clients.data_api import ClosedPosition, PositionSnapshot, TradeRecord
 from src.clients.gamma import GammaMarket
-from src.signals import WalletProfile
+from src.signals import (
+    MarketAnomalyFeatures,
+    SignalEvent,
+    TriggerRule,
+    WalletParticipantFeatures,
+    WalletProfile,
+    WalletSummaryFeatures,
+)
 from src.storage.raw import RawPayloadStore
 from src.storage.warehouse import PolymarketWarehouse, TopOfBookSnapshot
 
@@ -322,3 +329,160 @@ def test_polymarket_warehouse_upserts_wallet_tables_without_duplication(tmp_path
         assert stored_profile[0] == "0xwallet1"
         assert stored_profile[1] == 2
         assert stored_profile[2] == second_collection_time.replace(tzinfo=None)
+
+
+def test_polymarket_warehouse_upserts_signal_events_without_duplication(tmp_path) -> None:
+    database_path = tmp_path / "warehouse" / "polymarket.duckdb"
+    first_collection_time = datetime(2026, 3, 8, 12, 0, tzinfo=UTC)
+    second_collection_time = datetime(2026, 3, 8, 12, 30, tzinfo=UTC)
+
+    event = SignalEvent(
+        event_id="event-123",
+        asset_id="111",
+        condition_id="0xcondition123",
+        event_time_utc=datetime(2026, 3, 8, 12, 0, tzinfo=UTC),
+        direction="up",
+        trigger_reason="volume_spike, order_flow_imbalance",
+        trigger_rules=(
+            TriggerRule(
+                rule="volume_spike",
+                metric="volume_zscore",
+                threshold=Decimal("1.5"),
+                actual_value=Decimal("4.2"),
+            ),
+            TriggerRule(
+                rule="order_flow_imbalance",
+                metric="order_flow_imbalance",
+                threshold=Decimal("0.45"),
+                actual_value=Decimal("0.67"),
+            ),
+        ),
+        market_features=MarketAnomalyFeatures(
+            asset_id="111",
+            condition_id="0xcondition123",
+            event_time_utc=datetime(2026, 3, 8, 12, 0, tzinfo=UTC),
+            recent_window_seconds=900,
+            baseline_window_seconds=7200,
+            recent_trade_count=3,
+            recent_volume_usdc=Decimal("300"),
+            baseline_trade_count_mean=Decimal("1.5"),
+            baseline_trade_count_std=Decimal("0.5"),
+            trade_count_zscore=Decimal("3"),
+            baseline_volume_mean=Decimal("25"),
+            baseline_volume_std=Decimal("11.18"),
+            volume_zscore=Decimal("24.6"),
+            buy_volume_usdc=Decimal("250"),
+            sell_volume_usdc=Decimal("50"),
+            order_flow_imbalance=Decimal("0.666666666666666667"),
+            latest_price=Decimal("0.72"),
+            short_return_window_seconds=300,
+            short_return=Decimal("0.107692307692307692"),
+            medium_return_window_seconds=900,
+            medium_return=Decimal("0.2"),
+            liquidity_features_available=True,
+            latest_mid_price=Decimal("0.72"),
+            latest_spread_bps=Decimal("555.55"),
+            spread_change_bps=Decimal("227.6"),
+            top_of_book_depth_usdc=Decimal("79.4"),
+            depth_change_ratio=Decimal("-0.63"),
+            depth_imbalance=Decimal("-0.11"),
+        ),
+        wallet_summary=WalletSummaryFeatures(
+            event_time_utc=datetime(2026, 3, 8, 12, 0, tzinfo=UTC),
+            window_seconds=900,
+            active_wallet_count=2,
+            profiled_wallet_count=2,
+            sparse_wallet_set=False,
+            total_wallet_volume_usdc=Decimal("300"),
+            profiled_volume_share=Decimal("1"),
+            top_wallet_share=Decimal("0.833333333333333333"),
+            concentration_hhi=Decimal("0.722222222222222222"),
+            weighted_average_quality=Decimal("0.31"),
+            weighted_average_realized_roi=Decimal("0.18"),
+            weighted_average_hit_rate=Decimal("0.69"),
+            weighted_average_realized_pnl=Decimal("72"),
+            participants=(
+                WalletParticipantFeatures(
+                    wallet_address="0xwalletA",
+                    trade_count=2,
+                    traded_volume_usdc=Decimal("250"),
+                    buy_volume_usdc=Decimal("250"),
+                    sell_volume_usdc=Decimal("0"),
+                    net_order_flow_usdc=Decimal("250"),
+                    profile_as_of_time_utc=datetime(2026, 3, 8, 10, 0, tzinfo=UTC),
+                    realized_pnl=Decimal("90"),
+                    realized_roi=Decimal("0.35"),
+                    hit_rate=Decimal("0.75"),
+                    closed_position_count=6,
+                    activity_volume_usdc=Decimal("300"),
+                    quality_score=Decimal("0.425"),
+                ),
+                WalletParticipantFeatures(
+                    wallet_address="0xwalletB",
+                    trade_count=1,
+                    traded_volume_usdc=Decimal("50"),
+                    buy_volume_usdc=Decimal("0"),
+                    sell_volume_usdc=Decimal("50"),
+                    net_order_flow_usdc=Decimal("-50"),
+                    profile_as_of_time_utc=datetime(2026, 3, 8, 11, 0, tzinfo=UTC),
+                    realized_pnl=Decimal("-15"),
+                    realized_roi=Decimal("-0.15"),
+                    hit_rate=Decimal("0.40"),
+                    closed_position_count=3,
+                    activity_volume_usdc=Decimal("200"),
+                    quality_score=Decimal("-0.015"),
+                ),
+            ),
+        ),
+        explanation_payload={
+            "event_time_utc": "2026-03-08T12:00:00+00:00",
+            "trigger_reason": "volume_spike, order_flow_imbalance",
+            "wallet_context": {
+                "active_wallet_count": 2,
+                "participants": [
+                    {"wallet_address": "0xwalletA", "traded_volume_usdc": "250"},
+                    {"wallet_address": "0xwalletB", "traded_volume_usdc": "50"},
+                ],
+            },
+        },
+    )
+
+    with PolymarketWarehouse(database_path) as warehouse:
+        assert warehouse.upsert_signal_events([event], collection_time=first_collection_time) == 1
+        assert warehouse.upsert_signal_events([event, event], collection_time=second_collection_time) == 1
+
+    with duckdb.connect(str(database_path), read_only=True) as connection:
+        table_names = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'main'
+                """
+            ).fetchall()
+        }
+        assert "signal_events" in table_names
+
+        event_count = connection.execute("SELECT COUNT(*) FROM signal_events").fetchone()[0]
+        assert event_count == 1
+
+        stored_event = connection.execute(
+            """
+            SELECT
+                trigger_reason,
+                recent_volume_usdc,
+                active_wallet_count,
+                trigger_rules_json,
+                explanation_payload_json,
+                collection_time_utc
+            FROM signal_events
+            """
+        ).fetchone()
+        assert stored_event[0] == "volume_spike, order_flow_imbalance"
+        assert stored_event[1] == Decimal("300.000000000000000000")
+        assert stored_event[2] == 2
+        assert json.loads(stored_event[3]) == ["volume_spike", "order_flow_imbalance"]
+        explanation_payload = json.loads(stored_event[4])
+        assert explanation_payload["wallet_context"]["participants"][0]["wallet_address"] == "0xwalletA"
+        assert stored_event[5] == second_collection_time.replace(tzinfo=None)
