@@ -480,7 +480,7 @@ Notes:
 ## Milestone 7 - Backtesting Engine
 
 ### T7.1 Implement a walk-forward backtest runner
-Status: `pending`
+Status: `completed`
 
 Goal:
 - evaluate candidate strategies under realistic sequencing and cost assumptions
@@ -495,8 +495,12 @@ Acceptance criteria:
 - fees, spread, and slippage are included
 - output includes PnL, hit rate, and drawdown-style metrics
 
+Notes:
+- `src/research/backtesting.py` now runs timestamp-ordered walk-forward simulations for market-only, combined-rule, and classifier strategies with consistent position sizing, capital constraints, and realized-equity tracking.
+- Classifier retraining only uses labels whose exits are already observed at each decision timestamp, and run artifacts now include `summary.json`, `trades.jsonl`, `equity_curve.jsonl`, and a markdown report.
+
 ### T7.2 Publish a strategy comparison report
-Status: `pending`
+Status: `completed`
 
 Goal:
 - decide whether the strategy is strong enough to justify online paper trading
@@ -510,6 +514,10 @@ Acceptance criteria:
 - there is a single report or notebook summarizing strategy comparison
 - category and liquidity breakdowns are included
 - the next milestone decision is evidence-based
+
+Notes:
+- `scripts/run_walk_forward_backtest.py` writes a single `report.md` artifact per run with overall strategy comparison, category breakdowns, liquidity buckets, monthly slices, simulation assumptions, and the paper-trading go/no-go decision.
+- `tests/test_backtesting.py` and `tests/test_run_walk_forward_backtest_script.py` cover the artifact contract, cost-aware trade metrics, sequencing rules, and CLI summary output.
 
 ## Milestone 8 - Paper Trading
 
