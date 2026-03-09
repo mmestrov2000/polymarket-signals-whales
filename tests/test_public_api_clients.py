@@ -113,10 +113,12 @@ def test_data_api_client_normalizes_verified_public_endpoints_from_fixture() -> 
         transport=httpx.MockTransport(handler),
         request_config=RequestConfig(timeout_seconds=2.5, max_attempts=1, retry_backoff_seconds=0.0),
     ) as client:
-        leaderboard = client.list_leaderboard(limit=5)
-        positions = client.list_positions("0xwallet1", limit=5)
-        closed_positions = client.list_closed_positions("0xwallet1", limit=5)
-        activity = client.list_activity("0xwallet1", limit=10)
+        leaderboard = client.parse_leaderboard(client.get_leaderboard_payload(limit=5))
+        positions = client.parse_positions(client.get_positions_payload("0xwallet1", limit=5))
+        closed_positions = client.parse_closed_positions(
+            client.get_closed_positions_payload("0xwallet1", limit=5)
+        )
+        activity = client.parse_activity(client.get_activity_payload("0xwallet1", limit=10))
         trades = client.list_trades("0xcondition123", limit=10)
         holders = client.list_holders("0xcondition123", limit=10)
         open_interest = client.get_open_interest("0xcondition123")

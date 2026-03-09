@@ -245,7 +245,7 @@ Notes:
 ## Milestone 3 - Whale Wallet Data Collection
 
 ### T3.1 Define the wallet universe
-Status: `pending`
+Status: `completed`
 
 Goal:
 - choose which wallets are worth profiling without requiring full-chain attribution
@@ -260,8 +260,13 @@ Acceptance criteria:
 - the seed list can be regenerated from confirmed data sources
 - the approach does not depend on speculative wallet clustering
 
+Notes:
+- `src/ingestion/wallet_backfill.py` now defines a leaderboard-only wallet universe rule that inspects the top 25 `OVERALL` / `ALL` leaderboard rows ordered by `PNL`, filters blank `proxyWallet` values, and dedupes wallet seeds in API order.
+- `scripts/backfill_wallet_universe.py` persists both the raw leaderboard payload and a derived `wallet_seed_list` capture so the chosen seed cohort can be regenerated reproducibly from confirmed Data API inputs.
+- The v1 seed rule intentionally avoids speculative clustering and does not depend on Milestone 4 event detection.
+
 ### T3.2 Implement wallet-history collection
-Status: `pending`
+Status: `completed`
 
 Goal:
 - collect the raw inputs needed to score wallet quality
@@ -276,8 +281,13 @@ Acceptance criteria:
 - normalization keeps wallet address, market linkage, and timestamps intact
 - collection failures are observable and retryable
 
+Notes:
+- `src/clients/data_api.py` now exposes public payload-plus-parse helpers for leaderboard, positions, closed positions, and activity endpoints so collectors can capture raw responses before normalization.
+- `src/ingestion/wallet_backfill.py` now backfills `/positions`, `/closed-positions`, and `/activity` for each seeded wallet, writes raw captures under `data/raw/data_api/`, and records per-wallet failures without aborting the remaining cohort.
+- `src/storage/warehouse.py` now normalizes wallet history into `wallet_positions` and `wallet_closed_positions`, while reusing the existing `trades` table for wallet activity rows.
+
 ### T3.3 Build the wallet profile table
-Status: `pending`
+Status: `completed`
 
 Goal:
 - compute time-aware wallet metrics suitable for event-time research
@@ -291,6 +301,11 @@ Acceptance criteria:
 - a wallet profile row can be generated for a sample cohort
 - the profile includes reliability or sample-size context
 - metrics do not leak future outcomes into historical events
+
+Notes:
+- `src/signals/wallet_profiles.py` now computes time-aware wallet profiles as of an explicit cutoff time, including realized PnL, ROI, hit rate, average closed-position cost, activity counts, activity volume, and last-seen timestamps.
+- `src/storage/warehouse.py` now persists profile rows in `wallet_profiles`, and the collector emits one row per seeded wallet even when a wallet has empty history so sample-size context remains explicit.
+- Category-specific profitability, market specialization, and holding-period metrics remain out of scope for v1 because the currently confirmed schemas do not expose stable category fields or position-open timestamps.
 
 ## Milestone 4 - Signal Feature Engineering
 

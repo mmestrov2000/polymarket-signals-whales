@@ -7,8 +7,9 @@ from decimal import Decimal
 import duckdb
 
 from src.clients.clob import OrderBookSnapshot, PriceHistory, PriceHistoryPoint
-from src.clients.data_api import TradeRecord
+from src.clients.data_api import ClosedPosition, PositionSnapshot, TradeRecord
 from src.clients.gamma import GammaMarket
+from src.signals import WalletProfile
 from src.storage.raw import RawPayloadStore
 from src.storage.warehouse import PolymarketWarehouse, TopOfBookSnapshot
 
@@ -234,3 +235,90 @@ def test_polymarket_warehouse_upserts_top_of_book_snapshots_without_duplication(
         assert stored_snapshot[4] == Decimal("0.500000000000000000")
         assert stored_snapshot[5] == Decimal("0.020000000000000000")
         assert stored_snapshot[6] == second_collection_time.replace(tzinfo=None)
+
+
+def test_polymarket_warehouse_upserts_wallet_tables_without_duplication(tmp_path) -> None:
+    database_path = tmp_path / "warehouse" / "polymarket.duckdb"
+    first_collection_time = datetime(2026, 3, 8, 12, 0, tzinfo=UTC)
+    second_collection_time = datetime(2026, 3, 8, 12, 30, tzinfo=UTC)
+
+    position = PositionSnapshot(
+        proxy_wallet="0xwallet1",
+        asset_id="111",
+        condition_id="0xcondition123",
+        size=Decimal("500"),
+        average_price=Decimal("0.55"),
+        current_value=Decimal("275.00"),
+        realized_pnl=Decimal("25.50"),
+        outcome="YES",
+        outcome_index=0,
+        total_bought=Decimal("300"),
+        end_date=datetime(2026, 3, 31, 12, 0, tzinfo=UTC),
+    )
+    closed_position = ClosedPosition(
+        proxy_wallet="0xwallet1",
+        asset_id="111",
+        condition_id="0xcondition123",
+        outcome="YES",
+        average_price=Decimal("0.44"),
+        realized_pnl=Decimal("125.50"),
+        total_bought=Decimal("500"),
+        closed_at=datetime(2026, 3, 1, 10, 15, tzinfo=UTC),
+        end_date=datetime(2026, 3, 31, 12, 0, tzinfo=UTC),
+    )
+    profile = WalletProfile(
+        wallet_address="0xwallet1",
+        as_of_time_utc=datetime(2026, 3, 8, 12, 0, tzinfo=UTC),
+        realized_pnl=Decimal("125.50"),
+        realized_roi=Decimal("0.251"),
+        closed_position_count=1,
+        winning_closed_position_count=1,
+        hit_rate=Decimal("1"),
+        avg_closed_position_cost=Decimal("500"),
+        activity_trade_count=2,
+        activity_volume_usdc=Decimal("90"),
+        avg_trade_size_usdc=Decimal("45"),
+        first_activity_time_utc=datetime(2026, 3, 1, 10, 0, tzinfo=UTC),
+        last_activity_time_utc=datetime(2026, 3, 1, 12, 0, tzinfo=UTC),
+        last_closed_position_time_utc=datetime(2026, 3, 1, 10, 15, tzinfo=UTC),
+    )
+
+    with PolymarketWarehouse(database_path) as warehouse:
+        assert warehouse.upsert_wallet_positions([position], collection_time=first_collection_time) == 1
+        assert warehouse.upsert_wallet_closed_positions([closed_position], collection_time=first_collection_time) == 1
+        assert warehouse.upsert_wallet_profiles([profile], collection_time=first_collection_time) == 1
+
+        assert warehouse.upsert_wallet_positions([position], collection_time=first_collection_time) == 1
+        assert warehouse.upsert_wallet_closed_positions([closed_position], collection_time=second_collection_time) == 1
+        assert warehouse.upsert_wallet_profiles([profile], collection_time=second_collection_time) == 1
+
+    with duckdb.connect(str(database_path), read_only=True) as connection:
+        table_names = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'main'
+                """
+            ).fetchall()
+        }
+        assert {"wallet_positions", "wallet_closed_positions", "wallet_profiles"} <= table_names
+
+        position_count = connection.execute("SELECT COUNT(*) FROM wallet_positions").fetchone()[0]
+        closed_position_count = connection.execute("SELECT COUNT(*) FROM wallet_closed_positions").fetchone()[0]
+        profile_count = connection.execute("SELECT COUNT(*) FROM wallet_profiles").fetchone()[0]
+
+        assert position_count == 1
+        assert closed_position_count == 1
+        assert profile_count == 1
+
+        stored_profile = connection.execute(
+            """
+            SELECT wallet_address, activity_trade_count, collection_time_utc
+            FROM wallet_profiles
+            """
+        ).fetchone()
+        assert stored_profile[0] == "0xwallet1"
+        assert stored_profile[1] == 2
+        assert stored_profile[2] == second_collection_time.replace(tzinfo=None)
