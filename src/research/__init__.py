@@ -1,5 +1,18 @@
 """Research helpers for exploratory analysis and offline dataset generation."""
 
+from src.research.backtesting import (
+    DEFAULT_BACKTEST_OUTPUT_DIR,
+    BacktestArtifactPaths,
+    BacktestExperimentError,
+    EquityCurvePoint,
+    SliceSummary,
+    StrategyBacktestSummary,
+    StrategyTradeRecord,
+    WalkForwardBacktestConfig,
+    WalkForwardBacktestResult,
+    WalkForwardBacktestRun,
+    run_walk_forward_backtest,
+)
 from src.research.event_dataset import (
     DEFAULT_EVENT_DATASET_OUTPUT_DIR,
     DatasetIntegrityError,
@@ -49,13 +62,17 @@ from src.research.wallet_exploration import (
 )
 
 __all__ = [
+    "BacktestArtifactPaths",
+    "BacktestExperimentError",
     "DEFAULT_EVENT_DATASET_OUTPUT_DIR",
+    "DEFAULT_BACKTEST_OUTPUT_DIR",
     "DEFAULT_SIGNAL_CLASSIFIER_OUTPUT_DIR",
     "DEFAULT_WALLET_TABLES",
     "BINARY_FEATURE_NAMES",
     "ClassificationMetrics",
     "CoefficientWeight",
     "DatasetIntegrityError",
+    "EquityCurvePoint",
     "EventDatasetBuild",
     "EventDatasetBuildConfig",
     "EventDatasetBuildResult",
@@ -63,13 +80,19 @@ __all__ = [
     "LogisticRegressionConfig",
     "NUMERIC_FEATURE_NAMES",
     "NumericFeaturePreprocessing",
+    "SliceSummary",
     "SignalClassifierArtifactPaths",
     "SignalClassifierExperimentError",
     "SignalClassifierRun",
     "SignalClassifierRunResult",
+    "StrategyBacktestSummary",
     "StrategyMetrics",
+    "StrategyTradeRecord",
     "SUPPORTED_COHORT_METRICS",
     "TradeCostAssumptions",
+    "WalkForwardBacktestConfig",
+    "WalkForwardBacktestResult",
+    "WalkForwardBacktestRun",
     "WalletActivityTrade",
     "WalletClosedPositionPoint",
     "WalletCohortProfile",
@@ -88,6 +111,7 @@ __all__ = [
     "load_jsonl_capture",
     "market_label",
     "materialize_event_dataset",
+    "run_walk_forward_backtest",
     "run_signal_classifier_experiments",
     "wallet_display_name",
 ]
