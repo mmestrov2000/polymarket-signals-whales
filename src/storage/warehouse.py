@@ -11,8 +11,9 @@ from pathlib import Path
 import duckdb
 
 from src.clients.clob import OrderBookSnapshot, PriceHistory
-from src.clients.data_api import TradeRecord
+from src.clients.data_api import ClosedPosition, PositionSnapshot, TradeRecord
 from src.clients.gamma import GammaMarket
+from src.signals import WalletProfile
 
 
 DEFAULT_WAREHOUSE_PATH = Path("data/warehouse/polymarket.duckdb")
@@ -51,7 +52,7 @@ class TopOfBookSnapshot:
 
 
 class PolymarketWarehouse:
-    """Owns normalized DuckDB tables for market metadata, prices, trades, and live order books."""
+    """Owns normalized DuckDB tables for market, wallet, trade, and live order-book data."""
 
     def __init__(self, database_path: str | Path = DEFAULT_WAREHOUSE_PATH) -> None:
         self.database_path = Path(database_path)
@@ -155,6 +156,70 @@ class PolymarketWarehouse:
                 tick_size {DECIMAL_SQL_TYPE},
                 book_hash VARCHAR,
                 snapshot_time_utc TIMESTAMP,
+                source VARCHAR NOT NULL,
+                collection_time_utc TIMESTAMP NOT NULL,
+                updated_at_utc TIMESTAMP NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS wallet_positions (
+                position_snapshot_id VARCHAR PRIMARY KEY,
+                wallet_address VARCHAR NOT NULL,
+                asset_id VARCHAR,
+                condition_id VARCHAR,
+                outcome VARCHAR,
+                outcome_index INTEGER,
+                size {DECIMAL_SQL_TYPE},
+                average_price {DECIMAL_SQL_TYPE},
+                current_value {DECIMAL_SQL_TYPE},
+                realized_pnl {DECIMAL_SQL_TYPE},
+                total_bought {DECIMAL_SQL_TYPE},
+                end_time_utc TIMESTAMP,
+                source VARCHAR NOT NULL,
+                collection_time_utc TIMESTAMP NOT NULL,
+                updated_at_utc TIMESTAMP NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS wallet_closed_positions (
+                closed_position_id VARCHAR PRIMARY KEY,
+                wallet_address VARCHAR NOT NULL,
+                asset_id VARCHAR,
+                condition_id VARCHAR,
+                outcome VARCHAR,
+                average_price {DECIMAL_SQL_TYPE},
+                realized_pnl {DECIMAL_SQL_TYPE},
+                total_bought {DECIMAL_SQL_TYPE},
+                closed_at_utc TIMESTAMP,
+                end_time_utc TIMESTAMP,
+                source VARCHAR NOT NULL,
+                collection_time_utc TIMESTAMP NOT NULL,
+                updated_at_utc TIMESTAMP NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS wallet_profiles (
+                profile_id VARCHAR PRIMARY KEY,
+                wallet_address VARCHAR NOT NULL,
+                as_of_time_utc TIMESTAMP NOT NULL,
+                realized_pnl {DECIMAL_SQL_TYPE} NOT NULL,
+                realized_roi {DECIMAL_SQL_TYPE},
+                closed_position_count INTEGER NOT NULL,
+                winning_closed_position_count INTEGER NOT NULL,
+                hit_rate {DECIMAL_SQL_TYPE},
+                avg_closed_position_cost {DECIMAL_SQL_TYPE},
+                activity_trade_count INTEGER NOT NULL,
+                activity_volume_usdc {DECIMAL_SQL_TYPE} NOT NULL,
+                avg_trade_size_usdc {DECIMAL_SQL_TYPE},
+                first_activity_time_utc TIMESTAMP,
+                last_activity_time_utc TIMESTAMP,
+                last_closed_position_time_utc TIMESTAMP,
                 source VARCHAR NOT NULL,
                 collection_time_utc TIMESTAMP NOT NULL,
                 updated_at_utc TIMESTAMP NOT NULL
@@ -385,6 +450,230 @@ class PolymarketWarehouse:
 
         return len(trade_rows)
 
+    def upsert_wallet_positions(
+        self,
+        positions: Iterable[PositionSnapshot],
+        *,
+        source: str = "data_api.positions",
+        collection_time: datetime | None = None,
+    ) -> int:
+        collected_at = _normalize_utc_timestamp(collection_time or datetime.now(UTC))
+        position_rows: dict[str, tuple[object, ...]] = {}
+
+        for position in positions:
+            wallet_address = position.proxy_wallet
+            if not wallet_address:
+                continue
+
+            position_snapshot_id = _build_wallet_position_snapshot_id(position, collected_at)
+            position_rows[position_snapshot_id] = (
+                position_snapshot_id,
+                wallet_address,
+                position.asset_id,
+                position.condition_id,
+                position.outcome,
+                position.outcome_index,
+                position.size,
+                position.average_price,
+                position.current_value,
+                position.realized_pnl,
+                position.total_bought,
+                _normalize_nullable_utc_timestamp(position.end_date),
+                source,
+                collected_at,
+                collected_at,
+            )
+
+        if not position_rows:
+            return 0
+
+        position_ids = [(position_id,) for position_id in position_rows]
+
+        self._begin_transaction()
+        try:
+            self._connection.executemany(
+                "DELETE FROM wallet_positions WHERE position_snapshot_id = ?",
+                position_ids,
+            )
+            self._connection.executemany(
+                """
+                INSERT INTO wallet_positions (
+                    position_snapshot_id,
+                    wallet_address,
+                    asset_id,
+                    condition_id,
+                    outcome,
+                    outcome_index,
+                    size,
+                    average_price,
+                    current_value,
+                    realized_pnl,
+                    total_bought,
+                    end_time_utc,
+                    source,
+                    collection_time_utc,
+                    updated_at_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(position_rows.values()),
+            )
+            self._commit_transaction()
+        except Exception:
+            self._rollback_transaction()
+            raise
+
+        return len(position_rows)
+
+    def upsert_wallet_closed_positions(
+        self,
+        positions: Iterable[ClosedPosition],
+        *,
+        source: str = "data_api.closed_positions",
+        collection_time: datetime | None = None,
+    ) -> int:
+        collected_at = _normalize_utc_timestamp(collection_time or datetime.now(UTC))
+        closed_position_rows: dict[str, tuple[object, ...]] = {}
+
+        for position in positions:
+            wallet_address = position.proxy_wallet
+            if not wallet_address:
+                continue
+
+            closed_at = _normalize_nullable_utc_timestamp(position.closed_at)
+            closed_position_id = _build_wallet_closed_position_id(position, closed_at)
+            closed_position_rows[closed_position_id] = (
+                closed_position_id,
+                wallet_address,
+                position.asset_id,
+                position.condition_id,
+                position.outcome,
+                position.average_price,
+                position.realized_pnl,
+                position.total_bought,
+                closed_at,
+                _normalize_nullable_utc_timestamp(position.end_date),
+                source,
+                collected_at,
+                collected_at,
+            )
+
+        if not closed_position_rows:
+            return 0
+
+        position_ids = [(position_id,) for position_id in closed_position_rows]
+
+        self._begin_transaction()
+        try:
+            self._connection.executemany(
+                "DELETE FROM wallet_closed_positions WHERE closed_position_id = ?",
+                position_ids,
+            )
+            self._connection.executemany(
+                """
+                INSERT INTO wallet_closed_positions (
+                    closed_position_id,
+                    wallet_address,
+                    asset_id,
+                    condition_id,
+                    outcome,
+                    average_price,
+                    realized_pnl,
+                    total_bought,
+                    closed_at_utc,
+                    end_time_utc,
+                    source,
+                    collection_time_utc,
+                    updated_at_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(closed_position_rows.values()),
+            )
+            self._commit_transaction()
+        except Exception:
+            self._rollback_transaction()
+            raise
+
+        return len(closed_position_rows)
+
+    def upsert_wallet_profiles(
+        self,
+        profiles: Iterable[WalletProfile],
+        *,
+        source: str = "signals.wallet_profiles",
+        collection_time: datetime | None = None,
+    ) -> int:
+        collected_at = _normalize_utc_timestamp(collection_time or datetime.now(UTC))
+        profile_rows: dict[str, tuple[object, ...]] = {}
+
+        for profile in profiles:
+            profile_id = _build_wallet_profile_id(profile)
+            profile_rows[profile_id] = (
+                profile_id,
+                profile.wallet_address,
+                _normalize_utc_timestamp(profile.as_of_time_utc),
+                profile.realized_pnl,
+                profile.realized_roi,
+                profile.closed_position_count,
+                profile.winning_closed_position_count,
+                profile.hit_rate,
+                profile.avg_closed_position_cost,
+                profile.activity_trade_count,
+                profile.activity_volume_usdc,
+                profile.avg_trade_size_usdc,
+                _normalize_nullable_utc_timestamp(profile.first_activity_time_utc),
+                _normalize_nullable_utc_timestamp(profile.last_activity_time_utc),
+                _normalize_nullable_utc_timestamp(profile.last_closed_position_time_utc),
+                source,
+                collected_at,
+                collected_at,
+            )
+
+        if not profile_rows:
+            return 0
+
+        profile_ids = [(profile_id,) for profile_id in profile_rows]
+
+        self._begin_transaction()
+        try:
+            self._connection.executemany(
+                "DELETE FROM wallet_profiles WHERE profile_id = ?",
+                profile_ids,
+            )
+            self._connection.executemany(
+                """
+                INSERT INTO wallet_profiles (
+                    profile_id,
+                    wallet_address,
+                    as_of_time_utc,
+                    realized_pnl,
+                    realized_roi,
+                    closed_position_count,
+                    winning_closed_position_count,
+                    hit_rate,
+                    avg_closed_position_cost,
+                    activity_trade_count,
+                    activity_volume_usdc,
+                    avg_trade_size_usdc,
+                    first_activity_time_utc,
+                    last_activity_time_utc,
+                    last_closed_position_time_utc,
+                    source,
+                    collection_time_utc,
+                    updated_at_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(profile_rows.values()),
+            )
+            self._commit_transaction()
+        except Exception:
+            self._rollback_transaction()
+            raise
+
+        return len(profile_rows)
+
     def upsert_order_book_snapshots(
         self,
         snapshots: Iterable[TopOfBookSnapshot],
@@ -498,6 +787,47 @@ def _build_trade_id(trade: TradeRecord, trade_time: datetime | None) -> str:
         _decimal_as_text(trade.size),
         _decimal_as_text(trade.usdc_size),
         trade_time.isoformat() if trade_time else "",
+    )
+
+
+def _build_wallet_position_snapshot_id(
+    position: PositionSnapshot,
+    collection_time: datetime,
+) -> str:
+    return _stable_hash(
+        "wallet-position-snapshot",
+        _normalize_identity(position.proxy_wallet),
+        _normalize_identity(position.asset_id),
+        _normalize_identity(position.condition_id),
+        _normalize_identity(position.outcome),
+        str(position.outcome_index) if position.outcome_index is not None else "",
+        _decimal_as_text(position.size),
+        collection_time.isoformat(),
+    )
+
+
+def _build_wallet_closed_position_id(
+    position: ClosedPosition,
+    closed_at: datetime | None,
+) -> str:
+    return _stable_hash(
+        "wallet-closed-position",
+        _normalize_identity(position.proxy_wallet),
+        _normalize_identity(position.asset_id),
+        _normalize_identity(position.condition_id),
+        _normalize_identity(position.outcome),
+        _decimal_as_text(position.average_price),
+        _decimal_as_text(position.realized_pnl),
+        _decimal_as_text(position.total_bought),
+        closed_at.isoformat() if closed_at else "",
+    )
+
+
+def _build_wallet_profile_id(profile: WalletProfile) -> str:
+    return _stable_hash(
+        "wallet-profile",
+        _normalize_identity(profile.wallet_address),
+        _normalize_utc_timestamp(profile.as_of_time_utc).isoformat(),
     )
 
 

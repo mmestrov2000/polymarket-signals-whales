@@ -1,0 +1,93 @@
+{
+  "leaderboard": {
+    "leaderboard": [
+      {
+        "proxyWallet": "0xwallet1",
+        "rank": 1,
+        "pnl": "2500.75",
+        "vol": "100000.00",
+        "userName": "whale_1",
+        "verifiedBadge": true
+      },
+      {
+        "proxyWallet": "",
+        "rank": 2,
+        "pnl": "1250.00",
+        "vol": "50000.00",
+        "userName": "missing_wallet",
+        "verifiedBadge": false
+      },
+      {
+        "proxyWallet": "0xwallet1",
+        "rank": 3,
+        "pnl": "1100.00",
+        "vol": "48000.00",
+        "userName": "duplicate_wallet",
+        "verifiedBadge": false
+      },
+      {
+        "proxyWallet": "0xwallet2",
+        "rank": 4,
+        "pnl": "900.00",
+        "vol": "35000.00",
+        "userName": "whale_2",
+        "verifiedBadge": false
+      }
+    ]
+  },
+  "positions": {
+    "0xwallet1": [
+      {
+        "proxyWallet": "0xwallet1",
+        "positions": [
+          {
+            "asset": "111",
+            "conditionId": "0xcondition123",
+            "size": "500",
+            "avgPrice": "0.55",
+            "currentValue": "275.00",
+            "realizedPnl": "25.50",
+            "outcome": "YES",
+            "outcomeIndex": 0,
+            "totalBought": "300",
+            "endDate": "2026-03-31T12:00:00Z"
+          }
+        ]
+      }
+    ],
+    "0xwallet2": []
+  },
+  "closed_positions": {
+    "0xwallet1": [
+      {
+        "proxyWallet": "0xwallet1",
+        "asset": "111",
+        "conditionId": "0xcondition123",
+        "outcome": "YES",
+        "avgPrice": "0.44",
+        "realizedPnl": "125.50",
+        "totalBought": "500",
+        "timestamp": "2026-03-01T10:15:00Z",
+        "endDate": "2026-03-31T12:00:00Z"
+      }
+    ],
+    "0xwallet2": []
+  },
+  "activity": {
+    "0xwallet1": [
+      {
+        "proxyWallet": "0xwallet1",
+        "asset": "111",
+        "conditionId": "0xcondition123",
+        "outcome": "YES",
+        "side": "BUY",
+        "size": "100",
+        "price": "0.45",
+        "timestamp": "2026-03-01T10:00:00Z",
+        "transactionHash": "0xtx1",
+        "usdcSize": "45"
+      }
+    ],
+    "0xwallet2": []
+  }
+}

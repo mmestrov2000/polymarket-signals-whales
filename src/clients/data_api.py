@@ -111,6 +111,59 @@ class DataApiClient(RestJsonClient):
             transport=transport,
         )
 
+    def get_leaderboard_payload(
+        self,
+        *,
+        category: str = "OVERALL",
+        time_period: str = "ALL",
+        order_by: str = "PNL",
+        limit: int = 100,
+    ) -> Any:
+        return self.get_json(
+            "/v1/leaderboard",
+            params={
+                "category": category,
+                "timePeriod": time_period,
+                "orderBy": order_by,
+                "limit": limit,
+            },
+        )
+
+    def get_positions_payload(self, user: str, *, limit: int = 100, sort_by: str = "TOKENS") -> Any:
+        return self.get_json("/positions", params={"user": user, "limit": limit, "sortBy": sort_by})
+
+    def get_closed_positions_payload(
+        self,
+        user: str,
+        *,
+        limit: int = 100,
+        sort_by: str = "TIMESTAMP",
+    ) -> Any:
+        return self.get_json(
+            "/closed-positions",
+            params={"user": user, "limit": limit, "sortBy": sort_by},
+        )
+
+    def get_activity_payload(
+        self,
+        user: str,
+        *,
+        limit: int = 100,
+        activity_type: str = "TRADE",
+        sort_by: str = "TIMESTAMP",
+        sort_direction: str = "DESC",
+    ) -> Any:
+        return self.get_json(
+            "/activity",
+            params={
+                "user": user,
+                "limit": limit,
+                "type": activity_type,
+                "sortBy": sort_by,
+                "sortDirection": sort_direction,
+            },
+        )
+
     def get_trades_payload(self, market: str, *, limit: int = 100) -> Any:
         return self.get_json("/trades", params={"market": market, "limit": limit})
 
@@ -122,22 +175,17 @@ class DataApiClient(RestJsonClient):
         order_by: str = "PNL",
         limit: int = 100,
     ) -> list[LeaderboardEntry]:
-        payload = self.get_json(
-            "/v1/leaderboard",
-            params={
-                "category": category,
-                "timePeriod": time_period,
-                "orderBy": order_by,
-                "limit": limit,
-            },
+        return self.parse_leaderboard(
+            self.get_leaderboard_payload(
+                category=category,
+                time_period=time_period,
+                order_by=order_by,
+                limit=limit,
+            )
         )
-        records = extract_records(payload, wrapper_keys=("data", "leaderboard", "users", "results"))
-        return [self._parse_leaderboard_entry(record) for record in records]
 
     def list_positions(self, user: str, *, limit: int = 100, sort_by: str = "TOKENS") -> list[PositionSnapshot]:
-        payload = self.get_json("/positions", params={"user": user, "limit": limit, "sortBy": sort_by})
-        records = flatten_nested_records(payload, "positions", wrapper_keys=("data", "results", "positions"))
-        return [self._parse_position_snapshot(record) for record in records]
+        return self.parse_positions(self.get_positions_payload(user, limit=limit, sort_by=sort_by))
 
     def list_closed_positions(
         self,
@@ -146,12 +194,9 @@ class DataApiClient(RestJsonClient):
         limit: int = 100,
         sort_by: str = "TIMESTAMP",
     ) -> list[ClosedPosition]:
-        payload = self.get_json(
-            "/closed-positions",
-            params={"user": user, "limit": limit, "sortBy": sort_by},
+        return self.parse_closed_positions(
+            self.get_closed_positions_payload(user, limit=limit, sort_by=sort_by)
         )
-        records = flatten_nested_records(payload, "positions", wrapper_keys=("data", "results", "positions"))
-        return [self._parse_closed_position(record) for record in records]
 
     def list_activity(
         self,
@@ -162,18 +207,15 @@ class DataApiClient(RestJsonClient):
         sort_by: str = "TIMESTAMP",
         sort_direction: str = "DESC",
     ) -> list[TradeRecord]:
-        payload = self.get_json(
-            "/activity",
-            params={
-                "user": user,
-                "limit": limit,
-                "type": activity_type,
-                "sortBy": sort_by,
-                "sortDirection": sort_direction,
-            },
+        return self.parse_activity(
+            self.get_activity_payload(
+                user,
+                limit=limit,
+                activity_type=activity_type,
+                sort_by=sort_by,
+                sort_direction=sort_direction,
+            )
         )
-        records = extract_records(payload, wrapper_keys=("data", "activity", "results"))
-        return [self._parse_trade_record(record) for record in records]
 
     def list_trades(self, market: str, *, limit: int = 100) -> list[TradeRecord]:
         return self.parse_trades(self.get_trades_payload(market, limit=limit))
@@ -273,6 +315,26 @@ class DataApiClient(RestJsonClient):
             market_id=parse_optional_str(record.get("market")),
             value=parse_optional_decimal(record.get("value")),
         )
+
+    @classmethod
+    def parse_leaderboard(cls, payload: Any) -> list[LeaderboardEntry]:
+        records = extract_records(payload, wrapper_keys=("data", "leaderboard", "users", "results"))
+        return [cls._parse_leaderboard_entry(record) for record in records]
+
+    @classmethod
+    def parse_positions(cls, payload: Any) -> list[PositionSnapshot]:
+        records = flatten_nested_records(payload, "positions", wrapper_keys=("data", "results", "positions"))
+        return [cls._parse_position_snapshot(record) for record in records]
+
+    @classmethod
+    def parse_closed_positions(cls, payload: Any) -> list[ClosedPosition]:
+        records = flatten_nested_records(payload, "positions", wrapper_keys=("data", "results", "positions"))
+        return [cls._parse_closed_position(record) for record in records]
+
+    @classmethod
+    def parse_activity(cls, payload: Any) -> list[TradeRecord]:
+        records = extract_records(payload, wrapper_keys=("data", "activity", "results"))
+        return [cls._parse_trade_record(record) for record in records]
 
     @classmethod
     def parse_trades(cls, payload: Any) -> list[TradeRecord]:
