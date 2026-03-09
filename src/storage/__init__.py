@@ -1,10 +1,11 @@
 """Storage helpers for raw payload capture and DuckDB persistence."""
 
 from src.storage.raw import RawCaptureResult, RawPayloadStore
-from src.storage.warehouse import DEFAULT_WAREHOUSE_PATH, PolymarketWarehouse, TopOfBookSnapshot
+from src.storage.warehouse import DEFAULT_WAREHOUSE_PATH, EventDatasetRow, PolymarketWarehouse, TopOfBookSnapshot
 
 __all__ = [
     "DEFAULT_WAREHOUSE_PATH",
+    "EventDatasetRow",
     "PolymarketWarehouse",
     "RawCaptureResult",
     "RawPayloadStore",

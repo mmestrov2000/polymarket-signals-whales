@@ -52,6 +52,58 @@ class TopOfBookSnapshot:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class EventDatasetRow:
+    dataset_row_id: str
+    dataset_build_id: str
+    dataset_split: str
+    event_id: str
+    asset_id: str | None
+    condition_id: str | None
+    event_time_utc: datetime
+    source_event_collection_time_utc: datetime
+    direction: str
+    trigger_reason: str
+    recent_trade_count: int
+    recent_volume_usdc: Decimal
+    volume_zscore: Decimal | None
+    trade_count_zscore: Decimal | None
+    order_flow_imbalance: Decimal | None
+    short_return: Decimal | None
+    medium_return: Decimal | None
+    liquidity_features_available: bool
+    latest_price: Decimal | None
+    latest_mid_price: Decimal | None
+    latest_spread_bps: Decimal | None
+    spread_change_bps: Decimal | None
+    top_of_book_depth_usdc: Decimal | None
+    depth_change_ratio: Decimal | None
+    depth_imbalance: Decimal | None
+    active_wallet_count: int
+    profiled_wallet_count: int
+    sparse_wallet_set: bool
+    profiled_volume_share: Decimal | None
+    top_wallet_share: Decimal | None
+    concentration_hhi: Decimal | None
+    weighted_average_quality: Decimal | None
+    weighted_average_realized_roi: Decimal | None
+    weighted_average_hit_rate: Decimal | None
+    weighted_average_realized_pnl: Decimal | None
+    entry_price: Decimal
+    entry_price_time_utc: datetime
+    assumed_round_trip_cost_bps: Decimal
+    primary_label_name: str
+    primary_label_horizon_minutes: int
+    primary_label_continuation: bool
+    primary_label_reversion: bool
+    primary_label_profitable: bool
+    primary_directional_return_bps: Decimal
+    primary_net_pnl_bps: Decimal
+    primary_exit_price: Decimal
+    primary_exit_time_utc: datetime
+    horizon_labels_json: dict[str, object]
+
+
 class PolymarketWarehouse:
     """Owns normalized DuckDB tables for market, wallet, trade, and live order-book data."""
 
@@ -250,6 +302,63 @@ class PolymarketWarehouse:
                 top_wallet_share {DECIMAL_SQL_TYPE},
                 weighted_average_quality {DECIMAL_SQL_TYPE},
                 explanation_payload_json VARCHAR NOT NULL,
+                source VARCHAR NOT NULL,
+                collection_time_utc TIMESTAMP NOT NULL,
+                updated_at_utc TIMESTAMP NOT NULL
+            )
+            """
+        )
+        self._connection.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS event_dataset_rows (
+                dataset_row_id VARCHAR PRIMARY KEY,
+                dataset_build_id VARCHAR NOT NULL,
+                dataset_split VARCHAR NOT NULL,
+                event_id VARCHAR NOT NULL,
+                asset_id VARCHAR,
+                condition_id VARCHAR,
+                event_time_utc TIMESTAMP NOT NULL,
+                source_event_collection_time_utc TIMESTAMP NOT NULL,
+                direction VARCHAR NOT NULL,
+                trigger_reason VARCHAR NOT NULL,
+                recent_trade_count INTEGER NOT NULL,
+                recent_volume_usdc {DECIMAL_SQL_TYPE} NOT NULL,
+                volume_zscore {DECIMAL_SQL_TYPE},
+                trade_count_zscore {DECIMAL_SQL_TYPE},
+                order_flow_imbalance {DECIMAL_SQL_TYPE},
+                short_return {DECIMAL_SQL_TYPE},
+                medium_return {DECIMAL_SQL_TYPE},
+                liquidity_features_available BOOLEAN NOT NULL,
+                latest_price {DECIMAL_SQL_TYPE},
+                latest_mid_price {DECIMAL_SQL_TYPE},
+                latest_spread_bps {DECIMAL_SQL_TYPE},
+                spread_change_bps {DECIMAL_SQL_TYPE},
+                top_of_book_depth_usdc {DECIMAL_SQL_TYPE},
+                depth_change_ratio {DECIMAL_SQL_TYPE},
+                depth_imbalance {DECIMAL_SQL_TYPE},
+                active_wallet_count INTEGER NOT NULL,
+                profiled_wallet_count INTEGER NOT NULL,
+                sparse_wallet_set BOOLEAN NOT NULL,
+                profiled_volume_share {DECIMAL_SQL_TYPE},
+                top_wallet_share {DECIMAL_SQL_TYPE},
+                concentration_hhi {DECIMAL_SQL_TYPE},
+                weighted_average_quality {DECIMAL_SQL_TYPE},
+                weighted_average_realized_roi {DECIMAL_SQL_TYPE},
+                weighted_average_hit_rate {DECIMAL_SQL_TYPE},
+                weighted_average_realized_pnl {DECIMAL_SQL_TYPE},
+                entry_price {DECIMAL_SQL_TYPE} NOT NULL,
+                entry_price_time_utc TIMESTAMP NOT NULL,
+                assumed_round_trip_cost_bps {DECIMAL_SQL_TYPE} NOT NULL,
+                primary_label_name VARCHAR NOT NULL,
+                primary_label_horizon_minutes INTEGER NOT NULL,
+                primary_label_continuation BOOLEAN NOT NULL,
+                primary_label_reversion BOOLEAN NOT NULL,
+                primary_label_profitable BOOLEAN NOT NULL,
+                primary_directional_return_bps {DECIMAL_SQL_TYPE} NOT NULL,
+                primary_net_pnl_bps {DECIMAL_SQL_TYPE} NOT NULL,
+                primary_exit_price {DECIMAL_SQL_TYPE} NOT NULL,
+                primary_exit_time_utc TIMESTAMP NOT NULL,
+                horizon_labels_json VARCHAR NOT NULL,
                 source VARCHAR NOT NULL,
                 collection_time_utc TIMESTAMP NOT NULL,
                 updated_at_utc TIMESTAMP NOT NULL
@@ -863,6 +972,145 @@ class PolymarketWarehouse:
             raise
 
         return len(event_rows)
+
+    def upsert_event_dataset_rows(
+        self,
+        rows: Iterable[EventDatasetRow],
+        *,
+        source: str = "research.event_dataset",
+        collection_time: datetime | None = None,
+    ) -> int:
+        collected_at = _normalize_utc_timestamp(collection_time or datetime.now(UTC))
+        dataset_rows: dict[str, tuple[object, ...]] = {}
+
+        for row in rows:
+            dataset_rows[row.dataset_row_id] = (
+                row.dataset_row_id,
+                row.dataset_build_id,
+                row.dataset_split,
+                row.event_id,
+                row.asset_id,
+                row.condition_id,
+                _normalize_utc_timestamp(row.event_time_utc),
+                _normalize_utc_timestamp(row.source_event_collection_time_utc),
+                row.direction,
+                row.trigger_reason,
+                row.recent_trade_count,
+                row.recent_volume_usdc,
+                row.volume_zscore,
+                row.trade_count_zscore,
+                row.order_flow_imbalance,
+                row.short_return,
+                row.medium_return,
+                row.liquidity_features_available,
+                row.latest_price,
+                row.latest_mid_price,
+                row.latest_spread_bps,
+                row.spread_change_bps,
+                row.top_of_book_depth_usdc,
+                row.depth_change_ratio,
+                row.depth_imbalance,
+                row.active_wallet_count,
+                row.profiled_wallet_count,
+                row.sparse_wallet_set,
+                row.profiled_volume_share,
+                row.top_wallet_share,
+                row.concentration_hhi,
+                row.weighted_average_quality,
+                row.weighted_average_realized_roi,
+                row.weighted_average_hit_rate,
+                row.weighted_average_realized_pnl,
+                row.entry_price,
+                _normalize_utc_timestamp(row.entry_price_time_utc),
+                row.assumed_round_trip_cost_bps,
+                row.primary_label_name,
+                row.primary_label_horizon_minutes,
+                row.primary_label_continuation,
+                row.primary_label_reversion,
+                row.primary_label_profitable,
+                row.primary_directional_return_bps,
+                row.primary_net_pnl_bps,
+                row.primary_exit_price,
+                _normalize_utc_timestamp(row.primary_exit_time_utc),
+                json.dumps(row.horizon_labels_json, sort_keys=True),
+                source,
+                collected_at,
+                collected_at,
+            )
+
+        if not dataset_rows:
+            return 0
+
+        row_ids = [(row_id,) for row_id in dataset_rows]
+
+        self._begin_transaction()
+        try:
+            self._connection.executemany("DELETE FROM event_dataset_rows WHERE dataset_row_id = ?", row_ids)
+            self._connection.executemany(
+                """
+                INSERT INTO event_dataset_rows (
+                    dataset_row_id,
+                    dataset_build_id,
+                    dataset_split,
+                    event_id,
+                    asset_id,
+                    condition_id,
+                    event_time_utc,
+                    source_event_collection_time_utc,
+                    direction,
+                    trigger_reason,
+                    recent_trade_count,
+                    recent_volume_usdc,
+                    volume_zscore,
+                    trade_count_zscore,
+                    order_flow_imbalance,
+                    short_return,
+                    medium_return,
+                    liquidity_features_available,
+                    latest_price,
+                    latest_mid_price,
+                    latest_spread_bps,
+                    spread_change_bps,
+                    top_of_book_depth_usdc,
+                    depth_change_ratio,
+                    depth_imbalance,
+                    active_wallet_count,
+                    profiled_wallet_count,
+                    sparse_wallet_set,
+                    profiled_volume_share,
+                    top_wallet_share,
+                    concentration_hhi,
+                    weighted_average_quality,
+                    weighted_average_realized_roi,
+                    weighted_average_hit_rate,
+                    weighted_average_realized_pnl,
+                    entry_price,
+                    entry_price_time_utc,
+                    assumed_round_trip_cost_bps,
+                    primary_label_name,
+                    primary_label_horizon_minutes,
+                    primary_label_continuation,
+                    primary_label_reversion,
+                    primary_label_profitable,
+                    primary_directional_return_bps,
+                    primary_net_pnl_bps,
+                    primary_exit_price,
+                    primary_exit_time_utc,
+                    horizon_labels_json,
+                    source,
+                    collection_time_utc,
+                    updated_at_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                list(dataset_rows.values()),
+            )
+            self._commit_transaction()
+        except Exception:
+            self._rollback_transaction()
+            raise
+
+        return len(dataset_rows)
 
     def _begin_transaction(self) -> None:
         self._connection.execute("BEGIN TRANSACTION")

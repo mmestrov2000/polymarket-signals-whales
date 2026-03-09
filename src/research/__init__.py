@@ -1,5 +1,15 @@
-"""Read-only helpers for exploratory research notebooks."""
+"""Research helpers for exploratory analysis and offline dataset generation."""
 
+from src.research.event_dataset import (
+    DEFAULT_EVENT_DATASET_OUTPUT_DIR,
+    DatasetIntegrityError,
+    EventDatasetBuild,
+    EventDatasetBuildConfig,
+    EventDatasetBuildResult,
+    EventLabelConfig,
+    TradeCostAssumptions,
+    materialize_event_dataset,
+)
 from src.research.wallet_exploration import (
     DEFAULT_WALLET_TABLES,
     SUPPORTED_COHORT_METRICS,
@@ -24,8 +34,15 @@ from src.research.wallet_exploration import (
 )
 
 __all__ = [
+    "DEFAULT_EVENT_DATASET_OUTPUT_DIR",
     "DEFAULT_WALLET_TABLES",
+    "DatasetIntegrityError",
+    "EventDatasetBuild",
+    "EventDatasetBuildConfig",
+    "EventDatasetBuildResult",
+    "EventLabelConfig",
     "SUPPORTED_COHORT_METRICS",
+    "TradeCostAssumptions",
     "WalletActivityTrade",
     "WalletClosedPositionPoint",
     "WalletCohortProfile",
@@ -43,5 +60,6 @@ __all__ = [
     "load_json_capture",
     "load_jsonl_capture",
     "market_label",
+    "materialize_event_dataset",
     "wallet_display_name",
 ]
