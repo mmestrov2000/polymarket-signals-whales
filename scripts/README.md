@@ -7,6 +7,7 @@ Scripts are optional accelerators. Team workflow does not depend on them.
 - `agent_worktree_start.sh`: convenience wrapper to create a worktree branch.
 - `agent_worktree_finish.sh`: convenience wrapper to push branch and optionally open a PR.
 - `build_event_dataset.py`: materialize a QA-checked event dataset and write per-build metadata artifacts.
+- `train_signal_classifier.py`: compare Milestone 6 rule baselines with a numpy logistic-regression classifier and write reproducible run artifacts.
 
 ## Local Codex Helpers
 - `local/install_codex_skills.sh`: install template skills into local Codex profile.

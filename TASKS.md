@@ -437,7 +437,7 @@ Notes:
 ## Milestone 6 - Signal Classifier Training
 
 ### T6.1 Run baseline rule-based experiments
-Status: `pending`
+Status: `completed`
 
 Goal:
 - establish whether simple spike-following or wallet-conditioned rules show any edge
@@ -452,8 +452,12 @@ Acceptance criteria:
 - spike-only and combined strategies are compared on the same dataset split
 - results include net-of-costs metrics
 
+Notes:
+- `src/research/signal_classifier.py` now runs a market-only spike-following baseline and a combined wallet-conditioned baseline directly from `event_dataset_rows`, using the existing `primary_net_pnl_bps` label as the net-of-costs comparison metric.
+- `scripts/train_signal_classifier.py` provides a reproducible CLI entrypoint that selects one dataset build, evaluates both baselines on the same train/validation split, and writes per-run summaries under `data/research/signal_classifier_runs/`.
+
 ### T6.2 Train and evaluate a simple classifier
-Status: `pending`
+Status: `completed`
 
 Goal:
 - test whether a lightweight model improves on hand-built rules without overfitting
@@ -467,6 +471,11 @@ Acceptance criteria:
 - model training runs end to end on the generated dataset
 - evaluation is performed on out-of-sample time windows
 - feature effects are reviewable and not obviously leakage-driven
+
+Notes:
+- The Milestone 6 runner now trains a deterministic numpy logistic-regression model on the existing `train` split only, evaluates it on the out-of-sample `validation` rows, and reports both trade-selection metrics and classification metrics.
+- Run artifacts now include `summary.json`, `coefficients.json`, and `validation_predictions.jsonl`, with preprocessing statistics, split-level strategy metrics, and sorted coefficient directions for sanity review.
+- `tests/test_signal_classifier.py` and `tests/test_train_signal_classifier_script.py` cover the end-to-end experiment path, dataset-build selection errors, missing-split failures, and the CLI output contract.
 
 ## Milestone 7 - Backtesting Engine
 
